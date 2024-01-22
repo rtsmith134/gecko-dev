@@ -479,7 +479,7 @@ WSRunObject::PriorVisibleNode(nsINode* aNode,
 
   // Is there a visible run there or earlier?
   for (; run; run = run->mLeft) {
-    if (run->mType == WSType::normalWS) {
+    if (run->mType == WSType::normalWS || run->mType == WSType::trailingWS) {
       WSPoint point = GetCharBefore(aNode, aOffset);
       // When it's a non-empty text node, return it.
       if (point.mTextNode && point.mTextNode->Length()) {

@@ -374,13 +374,13 @@ XPCOMUtils.defineLazyGetter(this, "dbConnection", function() {
     dbFile.append("formhistory.sqlite");
     log("Opening database at " + dbFile.path);
 
-    _dbConnection = Services.storage.openUnsharedDatabase(dbFile);
+    _dbConnection = Cc["@mozilla.org/storage/service;1"].getService(Ci.mozIStorageService).openUnsharedDatabase(dbFile);
     dbInit();
   } catch (e) {
     if (e.result != Cr.NS_ERROR_FILE_CORRUPTED)
       throw e;
     dbCleanup(dbFile);
-    _dbConnection = Services.storage.openUnsharedDatabase(dbFile);
+    _dbConnection = Cc["@mozilla.org/storage/service;1"].getService(Ci.mozIStorageService).openUnsharedDatabase(dbFile);
     dbInit();
   }
 
@@ -568,7 +568,7 @@ function dbCleanup(dbFile) {
 
   // Create backup file
   let backupFile = dbFile.leafName + ".corrupt";
-  Services.storage.backupDatabaseFile(dbFile, backupFile);
+  Cc["@mozilla.org/storage/service;1"].getService(Ci.mozIStorageService).backupDatabaseFile(dbFile, backupFile);
 
   dbClose(false);
   dbFile.remove(false);

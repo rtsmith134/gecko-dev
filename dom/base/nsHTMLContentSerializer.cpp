@@ -197,101 +197,110 @@ nsHTMLContentSerializer::AppendElementStart(Element* aElement,
   nsIAtom *name = content->NodeInfo()->NameAtom();
   int32_t ns = content->GetNameSpaceID();
 
-  bool lineBreakBeforeOpen = LineBreakBeforeOpen(ns, name);
+  bool hideTag = false;
+  if (ns != kNameSpaceID_XHTML) {
+    nsAutoString nsStr;
+    nsresult rv = nsContentUtils::NameSpaceManager()->GetNameSpaceURI(ns, nsStr);
+    hideTag = ( NS_SUCCEEDED(rv) && nsStr.LowerCaseEqualsLiteral("http://disruptive-innovations.com/zoo/bluegriffon"));
+  }
 
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()) {
-    if (mColPos && lineBreakBeforeOpen) {
-      NS_ENSURE_TRUE(AppendNewLineToString(aStr), NS_ERROR_OUT_OF_MEMORY);
-    }
-    else {
-      NS_ENSURE_TRUE(MaybeAddNewlineForRootNode(aStr), NS_ERROR_OUT_OF_MEMORY);
-    }
-    if (!mColPos) {
-      NS_ENSURE_TRUE(AppendIndentation(aStr), NS_ERROR_OUT_OF_MEMORY);
+  if (!hideTag) {
+    bool lineBreakBeforeOpen = LineBreakBeforeOpen(ns, name);
+
+    if (((mDoFormat || forceFormat) && !PreLevel()) || mDoRaw) {
+      if (mColPos && lineBreakBeforeOpen) {
+        NS_ENSURE_TRUE(AppendNewLineToString(aStr), NS_ERROR_OUT_OF_MEMORY);
+        mMayIgnoreLineBreakSequence = PR_FALSE;
+      }
+      else {
+        NS_ENSURE_TRUE(MaybeAddNewlineForRootNode(aStr), NS_ERROR_OUT_OF_MEMORY);;
+      }
+      if (!mColPos && !mDoRaw) {
+        NS_ENSURE_TRUE(AppendIndentation(aStr), NS_ERROR_OUT_OF_MEMORY);;;
+      }
+      else if (mAddSpace) {
+        NS_ENSURE_TRUE(AppendToString(char16_t(' '), aStr), NS_ERROR_OUT_OF_MEMORY);;;
+        mAddSpace = false;
+      }
     }
     else if (mAddSpace) {
       bool result = AppendToString(char16_t(' '), aStr);
       mAddSpace = false;
       NS_ENSURE_TRUE(result, NS_ERROR_OUT_OF_MEMORY);
     }
-  }
-  else if (mAddSpace) {
-    bool result = AppendToString(char16_t(' '), aStr);
-    mAddSpace = false;
-    NS_ENSURE_TRUE(result, NS_ERROR_OUT_OF_MEMORY);
-  }
-  else {
-    NS_ENSURE_TRUE(MaybeAddNewlineForRootNode(aStr), NS_ERROR_OUT_OF_MEMORY);
-  }
-  // Always reset to avoid false newlines in case MaybeAddNewlineForRootNode wasn't
-  // called
-  mAddNewlineForRootNode = false;
-
-  NS_ENSURE_TRUE(AppendToString(kLessThan, aStr), NS_ERROR_OUT_OF_MEMORY);
-
-  NS_ENSURE_TRUE(AppendToString(nsDependentAtomString(name), aStr), NS_ERROR_OUT_OF_MEMORY);
-
-  MaybeEnterInPreContent(content);
-
-  // for block elements, we increase the indentation
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel())
-    NS_ENSURE_TRUE(IncrIndentation(name), NS_ERROR_OUT_OF_MEMORY);
-
-  // Need to keep track of OL and LI elements in order to get ordinal number 
-  // for the LI.
-  if (mIsCopying && name == nsGkAtoms::ol && ns == kNameSpaceID_XHTML){
-    // We are copying and current node is an OL;
-    // Store its start attribute value in olState->startVal.
-    nsAutoString start;
-    int32_t startAttrVal = 0;
-
-    aElement->GetAttr(kNameSpaceID_None, nsGkAtoms::start, start);
-    if (!start.IsEmpty()){
-      nsresult rv = NS_OK;
-      startAttrVal = start.ToInteger(&rv);
-      //If OL has "start" attribute, first LI element has to start with that value
-      //Therefore subtracting 1 as all the LI elements are incrementing it before using it;
-      //In failure of ToInteger(), default StartAttrValue to 0.
-      if (NS_SUCCEEDED(rv))
-        startAttrVal--; 
-      else
-        startAttrVal = 0;
+    else {
+      NS_ENSURE_TRUE(MaybeAddNewlineForRootNode(aStr), NS_ERROR_OUT_OF_MEMORY);
     }
-    mOLStateStack.AppendElement(olState(startAttrVal, true));
-  }
+    // Always reset to avoid false newlines in case MaybeAddNewlineForRootNode wasn't
+    // called
+    mAddNewlineForRootNode = false;
 
-  if (mIsCopying && name == nsGkAtoms::li && ns == kNameSpaceID_XHTML) {
-    mIsFirstChildOfOL = IsFirstChildOfOL(aOriginalElement);
-    if (mIsFirstChildOfOL){
-      // If OL is parent of this LI, serialize attributes in different manner.
-      NS_ENSURE_TRUE(SerializeLIValueAttribute(aElement, aStr), NS_ERROR_OUT_OF_MEMORY);
+    NS_ENSURE_TRUE(AppendToString(kLessThan, aStr), NS_ERROR_OUT_OF_MEMORY);
+
+    NS_ENSURE_TRUE(AppendToString(nsDependentAtomString(name), aStr), NS_ERROR_OUT_OF_MEMORY);
+
+    MaybeEnterInPreContent(content);
+
+    // for block elements, we increase the indentation
+    if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel())
+      NS_ENSURE_TRUE(IncrIndentation(name), NS_ERROR_OUT_OF_MEMORY);
+
+    // Need to keep track of OL and LI elements in order to get ordinal number
+    // for the LI.
+    if (mIsCopying && name == nsGkAtoms::ol && ns == kNameSpaceID_XHTML){
+      // We are copying and current node is an OL;
+      // Store its start attribute value in olState->startVal.
+      nsAutoString start;
+      int32_t startAttrVal = 0;
+
+      aElement->GetAttr(kNameSpaceID_None, nsGkAtoms::start, start);
+      if (!start.IsEmpty()){
+        nsresult rv = NS_OK;
+        startAttrVal = start.ToInteger(&rv);
+        //If OL has "start" attribute, first LI element has to start with that value
+        //Therefore subtracting 1 as all the LI elements are incrementing it before using it;
+        //In failure of ToInteger(), default StartAttrValue to 0.
+        if (NS_SUCCEEDED(rv))
+          startAttrVal--;
+        else
+          startAttrVal = 0;
+      }
+      mOLStateStack.AppendElement(olState(startAttrVal, true));
     }
-  }
 
-  // Even LI passed above have to go through this 
-  // for serializing attributes other than "value".
-  nsAutoString dummyPrefix;
-  NS_ENSURE_TRUE(SerializeHTMLAttributes(content,
-                                         aOriginalElement,
-                                         dummyPrefix,
-                                         EmptyString(),
-                                         name,
-                                         ns,
-                                         aStr), NS_ERROR_OUT_OF_MEMORY);
+    if (mIsCopying && name == nsGkAtoms::li && ns == kNameSpaceID_XHTML) {
+      mIsFirstChildOfOL = IsFirstChildOfOL(aOriginalElement);
+      if (mIsFirstChildOfOL){
+        // If OL is parent of this LI, serialize attributes in different manner.
+        NS_ENSURE_TRUE(SerializeLIValueAttribute(aElement, aStr), NS_ERROR_OUT_OF_MEMORY);
+      }
+    }
 
-  NS_ENSURE_TRUE(AppendToString(kGreaterThan, aStr), NS_ERROR_OUT_OF_MEMORY);
+    // Even LI passed above have to go through this
+    // for serializing attributes other than "value".
+    nsAutoString dummyPrefix;
+    NS_ENSURE_TRUE(SerializeHTMLAttributes(content,
+                                           aOriginalElement,
+                                           dummyPrefix,
+                                           EmptyString(),
+                                           name,
+                                           ns,
+                                           aStr), NS_ERROR_OUT_OF_MEMORY);
 
-  if (ns == kNameSpaceID_XHTML &&
-      (name == nsGkAtoms::script ||
-       name == nsGkAtoms::style ||
-       name == nsGkAtoms::noscript ||
-       name == nsGkAtoms::noframes)) {
-    ++mDisableEntityEncoding;
-  }
+    NS_ENSURE_TRUE(AppendToString(kGreaterThan, aStr), NS_ERROR_OUT_OF_MEMORY);
 
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel() &&
-    LineBreakAfterOpen(ns, name)) {
-    NS_ENSURE_TRUE(AppendNewLineToString(aStr), NS_ERROR_OUT_OF_MEMORY);
+    if (ns == kNameSpaceID_XHTML &&
+        (name == nsGkAtoms::script ||
+         name == nsGkAtoms::style ||
+         name == nsGkAtoms::noscript ||
+         name == nsGkAtoms::noframes)) {
+      ++mDisableEntityEncoding;
+    }
+
+    if ((mDoFormat || forceFormat) && !PreLevel() &&
+      !mDoRaw && LineBreakAfterOpen(ns, name)) {
+      NS_ENSURE_TRUE(AppendNewLineToString(aStr), NS_ERROR_OUT_OF_MEMORY);
+    }
   }
 
   NS_ENSURE_TRUE(AfterElementStart(content, aOriginalElement, aStr), NS_ERROR_OUT_OF_MEMORY);
@@ -309,6 +318,13 @@ nsHTMLContentSerializer::AppendElementEnd(Element* aElement,
 
   nsIAtom *name = content->NodeInfo()->NameAtom();
   int32_t ns = content->GetNameSpaceID();
+
+  if (ns != kNameSpaceID_XHTML) {
+    nsAutoString nsStr;
+    nsresult rv = nsContentUtils::NameSpaceManager()->GetNameSpaceURI(ns, nsStr);
+    if (NS_SUCCEEDED(rv) && nsStr.LowerCaseEqualsLiteral("http://disruptive-innovations.com/zoo/bluegriffon"))
+      return NS_OK;
+  }
 
   if (ns == kNameSpaceID_XHTML &&
       (name == nsGkAtoms::script ||
@@ -497,7 +513,8 @@ nsHTMLContentSerializer::AppendAndTranslateEntities(const nsAString& aStr,
   bool nonBasicEntities =
     !!(mFlags & (nsIDocumentEncoder::OutputEncodeLatin1Entities |
                  nsIDocumentEncoder::OutputEncodeHTMLEntities   |
-                 nsIDocumentEncoder::OutputEncodeW3CEntities));
+                 nsIDocumentEncoder::OutputEncodeW3CEntities    |
+                 nsIDocumentEncoder::OutputEncodeCharacterEntities));
 
   if (!nonBasicEntities &&
       (mFlags & (nsIDocumentEncoder::OutputEncodeBasicEntities))) {
@@ -554,7 +571,13 @@ nsHTMLContentSerializer::AppendAndTranslateEntities(const nsAString& aStr,
       // needs to be replaced
       for (; c < fragmentEnd; c++, advanceLength++) {
         char16_t val = *c;
-        if (val <= kValNBSP && entityTable[val]) {
+        if ((val == kValNBSP || val > 127) &&
+            (mFlags & nsIDocumentEncoder::OutputEncodeCharacterEntities)) {
+          nsAutoString entityValue(char16_t('#'));
+          entityValue.AppendInt(val);
+          entityText = ToNewCString(entityValue);
+          break;
+        } else if (val <= kValNBSP && entityTable[val]) {
           fullConstEntityText = kEntityStrings[entityTable[val]];
           break;
         } else if (val > 127 &&

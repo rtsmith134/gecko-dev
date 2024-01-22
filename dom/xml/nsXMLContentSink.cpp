@@ -1307,6 +1307,8 @@ NS_IMETHODIMP
 nsXMLContentSink::ReportError(const char16_t* aErrorText,
                               const char16_t* aSourceText,
                               nsIScriptError *aError,
+                              uint32_t aLineNumber,
+                              uint32_t aColNumber,
                               bool *_retval)
 {
   NS_PRECONDITION(aError && aSourceText && aErrorText, "Check arguments!!!");
@@ -1363,7 +1365,13 @@ nsXMLContentSink::ReportError(const char16_t* aErrorText,
                                    u"href=\"chrome://global/locale/intl.css\" type=\"text/css\"");
   NS_ENSURE_SUCCESS(rv, rv);
 
-  const char16_t* noAtts[] = { 0, 0 };
+  nsAutoString lineString, colString;
+  lineString.AppendInt(aLineNumber);
+  colString.AppendInt(aColNumber);
+  const char16_t* noAtts[] = {  lineString.get(),
+                                colString.get(),
+                                0,
+                                0 };
 
   NS_NAMED_LITERAL_STRING(errorNs,
                           "http://www.mozilla.org/newlayout/xml/parsererror.xml");
@@ -1372,7 +1380,7 @@ nsXMLContentSink::ReportError(const char16_t* aErrorText,
   parsererror.Append((char16_t)0xFFFF);
   parsererror.AppendLiteral("parsererror");
 
-  rv = HandleStartElement(parsererror.get(), noAtts, 0, (uint32_t)-1,
+  rv = HandleStartElement(parsererror.get(), noAtts, 2, (uint32_t)-1,
                           false);
   NS_ENSURE_SUCCESS(rv, rv);
 

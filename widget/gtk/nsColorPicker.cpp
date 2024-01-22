@@ -12,6 +12,8 @@
 #include "WidgetUtils.h"
 #include "nsPIDOMWindow.h"
 
+#include "nsCSSParser.h"
+
 NS_IMPL_ISUPPORTS(nsColorPicker, nsIColorPicker)
 
 #if defined(ACTIVATE_GTK3_COLOR_PICKER) && GTK_CHECK_VERSION(3,4,0)
@@ -60,12 +62,14 @@ GtkColorSelection* nsColorPicker::WidgetGetColorSelection(GtkWidget* widget)
 
 NS_IMETHODIMP nsColorPicker::Init(mozIDOMWindowProxy *aParent,
                                   const nsAString& title,
-                                  const nsAString& initialColor)
+                                  const nsAString& initialColor,
+                                  bool aShowsAlpha)
 {
   auto* parent = nsPIDOMWindowOuter::From(aParent);
   mParentWidget = mozilla::widget::WidgetUtils::DOMWindowToWidget(parent);
   mTitle = title;
   mInitialColor = initialColor;
+  mShowsAlpha = aShowsAlpha;
 
   return NS_OK;
 }
@@ -73,15 +77,14 @@ NS_IMETHODIMP nsColorPicker::Init(mozIDOMWindowProxy *aParent,
 NS_IMETHODIMP nsColorPicker::Open(nsIColorPickerShownCallback *aColorPickerShownCallback)
 {
 
-  // Input color string should be 7 length (i.e. a string representing a valid
-  // simple color)
-  if (mInitialColor.Length() != 7) {
+  nsCSSValue value;
+  nsCSSParser parser;
+  if (!parser.ParseColorString(mInitialColor, nullptr, 0, value)) {
     return NS_ERROR_FAILURE;
   }
 
-  const nsAString& withoutHash  = StringTail(mInitialColor, 6);
   nscolor color;
-  if (!NS_HexToRGBA(withoutHash, nsHexColorType::NoAlpha, &color)) {
+  if (!nsRuleNode::ComputeColor(value, nullptr, nullptr, color)) {
     return NS_ERROR_FAILURE;
   }
 
@@ -103,7 +106,7 @@ NS_IMETHODIMP nsColorPicker::Open(nsIColorPickerShownCallback *aColorPickerShown
       gtk_window_set_destroy_with_parent(GTK_WINDOW(color_chooser), TRUE);
   }
   
-  gtk_color_chooser_set_use_alpha(GTK_COLOR_CHOOSER(color_chooser), FALSE);
+  gtk_color_chooser_set_use_alpha(GTK_COLOR_CHOOSER(color_chooser), mShowsAlpha);
   GdkRGBA color_rgba = convertToRgbaColor(color);    
   gtk_color_chooser_set_rgba(GTK_COLOR_CHOOSER(color_chooser),
                              &color_rgba);
@@ -119,6 +122,8 @@ NS_IMETHODIMP nsColorPicker::Open(nsIColorPickerShownCallback *aColorPickerShown
     gtk_window_set_destroy_with_parent(window, TRUE);
   }
 
+  gtk_color_selection_set_has_opacity_control(WidgetGetColorSelection(color_chooser),
+                                              mShowsAlpha);
   GdkColor color_gdk = convertToGdkColor(color);
   gtk_color_selection_set_current_color(WidgetGetColorSelection(color_chooser),
                                         &color_gdk);
@@ -182,10 +187,28 @@ void nsColorPicker::ReadValueFromColorSelection(GtkColorSelection* colorselectio
   GdkColor rgba;
   gtk_color_selection_get_current_color(colorselection, &rgba);
 
-  mColor.Assign('#');
-  mColor += ToHexString(convertGdkColorComponent(rgba.red));
-  mColor += ToHexString(convertGdkColorComponent(rgba.green));
-  mColor += ToHexString(convertGdkColorComponent(rgba.blue));
+  guint16 alphaValue = 65535;
+  if (mShowsAlpha) {
+    alphaValue = gtk_color_selection_get_current_alpha(colorselection);
+  }
+
+  if (alphaValue == 65535) {
+    mColor.Assign('#');
+    mColor += ToHexString(convertGdkColorComponent(rgba.red));
+    mColor += ToHexString(convertGdkColorComponent(rgba.green));
+    mColor += ToHexString(convertGdkColorComponent(rgba.blue));
+  }
+  else {
+    mColor.AssignWithConversion("rgba(");
+    mColor.AppendInt(convertGdkColorComponent(rgba.red), 10);
+    mColor.AppendLiteral(", ");
+    mColor.AppendInt(convertGdkColorComponent(rgba.green), 10);
+    mColor.AppendLiteral(", ");
+    mColor.AppendInt(convertGdkColorComponent(rgba.blue), 10);
+    mColor.AppendLiteral(", ");
+    mColor.AppendFloat(((float)alphaValue / 65535));
+    mColor.AppendLiteral(")");
+  }
 }
 #endif
 

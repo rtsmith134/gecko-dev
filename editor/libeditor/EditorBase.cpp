@@ -104,6 +104,7 @@
 #include "nsThreadUtils.h"              // for nsRunnable
 #include "nsTransactionManager.h"       // for nsTransactionManager
 #include "prtime.h"                     // for PR_Now
+#include "nsIEditorMouseObserver.h"
 
 class nsIOutputStream;
 class nsIParserService;
@@ -173,6 +174,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(EditorBase)
  NS_IMPL_CYCLE_COLLECTION_UNLINK(mIMETextNode)
  NS_IMPL_CYCLE_COLLECTION_UNLINK(mActionListeners)
  NS_IMPL_CYCLE_COLLECTION_UNLINK(mEditorObservers)
+ NS_IMPL_CYCLE_COLLECTION_UNLINK(mEditorMouseObservers)
  NS_IMPL_CYCLE_COLLECTION_UNLINK(mDocStateListeners)
  NS_IMPL_CYCLE_COLLECTION_UNLINK(mEventTarget)
  NS_IMPL_CYCLE_COLLECTION_UNLINK(mEventListener)
@@ -193,6 +195,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(EditorBase)
  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mIMETextNode)
  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mActionListeners)
  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mEditorObservers)
+ NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mEditorMouseObservers)
  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mDocStateListeners)
  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mEventTarget)
  NS_IMPL_CYCLE_COLLECTION_TRAVERSE(mEventListener)
@@ -461,6 +464,7 @@ EditorBase::PreDestroy(bool aDestroyingFrames)
   HideCaret(false);
   mActionListeners.Clear();
   mEditorObservers.Clear();
+  mEditorMouseObservers.Clear();
   mDocStateListeners.Clear();
   mInlineSpellChecker = nullptr;
   mSpellcheckCheckboxState = eTriUnset;
@@ -1825,6 +1829,36 @@ EditorBase::RemoveEditorObserver(nsIEditorObserver* aObserver)
   return NS_OK;
 }
 
+NS_IMETHODIMP
+EditorBase::AddEditorMouseObserver(nsIEditorMouseObserver *aObserver)
+{
+  // we don't keep ownership of the observers.  They must
+  // remove themselves as observers before they are destroyed.
+
+  NS_ENSURE_TRUE(aObserver, NS_ERROR_NULL_POINTER);
+
+  // Make sure the listener isn't already on the list
+  if (mEditorMouseObservers.IndexOf(aObserver) == -1)
+  {
+    if (!mEditorMouseObservers.AppendObject(aObserver))
+      return NS_ERROR_FAILURE;
+  }
+
+  return NS_OK;
+}
+
+
+NS_IMETHODIMP
+EditorBase::RemoveEditorMouseObserver(nsIEditorMouseObserver *aObserver)
+{
+  NS_ENSURE_TRUE(aObserver, NS_ERROR_FAILURE);
+
+  if (!mEditorMouseObservers.RemoveObject(aObserver))
+    return NS_ERROR_FAILURE;
+
+  return NS_OK;
+}
+
 class EditorInputEventDispatcher final : public Runnable
 {
 public:
@@ -1929,6 +1963,27 @@ EditorBase::FireInputEvent()
   //       true after compositionstart and before compositionend.
   nsContentUtils::AddScriptRunner(
     new EditorInputEventDispatcher(this, target, !!GetComposition()));
+}
+
+bool
+EditorBase::NotifyEditorMouseObservers(MouseEventType aMouseEventType,
+                                       int32_t aClientX,
+                                       int32_t aClientY,
+                                       nsIDOMNode* aTarget,
+                                       bool aIsShiftKey)
+{
+  bool rv = false;
+  for (int32_t i = 0; i < mEditorMouseObservers.Count(); i++) {
+    bool oneRv = false;
+    switch (aMouseEventType) {
+    case EditorBase::kMouseDown: mEditorMouseObservers[i]->MouseDown(aClientX, aClientY, aTarget, aIsShiftKey, &rv); break;
+    case EditorBase::kMouseUp:   mEditorMouseObservers[i]->MouseUp(aClientX, aClientY, aTarget, aIsShiftKey, &rv); break;
+    case EditorBase::kMouseMove: mEditorMouseObservers[i]->MouseMove(aClientX, aClientY, aTarget, aIsShiftKey, &rv); break;
+    }
+    rv |= oneRv;
+  }
+
+  return rv;
 }
 
 NS_IMETHODIMP
@@ -2300,7 +2355,11 @@ EditorBase::CloneAttributes(Element* aDest,
 
   // Clear existing attributes
   RefPtr<nsDOMAttributeMap> destAttributes = aDest->Attributes();
-  while (RefPtr<Attr> attr = destAttributes->Item(0)) {
+  uint32_t destCount = destAttributes->Length();
+  for (int32_t i = destCount - 1; i >= 0; i--) {
+    RefPtr<Attr> attr = destAttributes->Item(i);
+    nsAutoString value;
+    attr->GetValue(value);
     if (destInBody) {
       RemoveAttribute(aDest, attr->NodeInfo()->NameAtom());
     } else {
@@ -2313,8 +2372,18 @@ EditorBase::CloneAttributes(Element* aDest,
   uint32_t sourceCount = sourceAttributes->Length();
   for (uint32_t i = 0; i < sourceCount; i++) {
     RefPtr<Attr> attr = sourceAttributes->Item(i);
-    nsAutoString value;
+    nsAutoString name, value;
+    attr->NodeInfo()->NameAtom()->ToString(name);
     attr->GetValue(value);
+    if (name.EqualsLiteral("xmlns")) {
+      // BLUEGRIFFON: make sure we don't copy a xmlns attribute we don't need because
+      // already there... This is needed because BlueGriffon deals with xhtml while
+      // Gecko deals only with html
+      nsAutoString namespaceURI;
+      aDest->GetNamespaceURI(namespaceURI);
+      if (value.Equals(namespaceURI))
+        continue;
+    }
     if (destInBody) {
       SetAttributeOrEquivalent(aDest, attr->NodeInfo()->NameAtom(), value,
                                false);
@@ -2779,6 +2848,35 @@ struct SavedRange final
   int32_t mStartOffset;
   int32_t mEndOffset;
 };
+
+nsresult
+EditorBase::RemoveNonCopyableAttributes(nsIDOMElement * aElement)
+{
+  NS_ENSURE_TRUE(aElement, NS_ERROR_NULL_POINTER);
+  nsresult res = NS_OK;
+
+  nsCOMPtr<nsIDOMMozNamedAttrMap> attributes;
+  aElement->GetAttributes(getter_AddRefs(attributes));
+  NS_ENSURE_TRUE(attributes, NS_ERROR_FAILURE);
+  uint32_t attrCount;
+  attributes->GetLength(&attrCount);
+  nsCOMPtr<nsIDOMAttr> attr;
+  for (int32_t i = attrCount - 1; i >= 0; i--)   {
+    if (NS_SUCCEEDED(attributes->Item(i, getter_AddRefs(attr))) && attr) {
+      nsString attrName;
+      if (NS_SUCCEEDED(attr->GetName(attrName))) {
+        ToLowerCase(attrName);
+          if (StringBeginsWith(attrName, NS_LITERAL_STRING("its-")) ||
+              attrName.EqualsLiteral("translate") ||
+              attrName.EqualsLiteral("id")) {
+            res = RemoveAttribute(aElement, attrName);
+            NS_ENSURE_SUCCESS(res, res);
+        }
+      }
+    }
+  }
+  return res;
+}
 
 nsresult
 EditorBase::SplitNodeImpl(nsIContent& aExistingRightNode,
@@ -3869,6 +3967,11 @@ EditorBase::SplitNodeDeep(nsIContent& aNode,
       ErrorResult rv;
       nsCOMPtr<nsIContent> newLeftNode = SplitNode(nodeToSplit, offset, rv);
       NS_ENSURE_TRUE(!NS_FAILED(rv.StealNSResult()), -1);
+
+      nsCOMPtr<nsIDOMElement> elt = do_QueryInterface(nodeToSplit);
+      if (elt) {
+        RemoveNonCopyableAttributes(elt);
+      }
 
       rightNode = nodeToSplit;
       leftNode = newLeftNode;

@@ -67,6 +67,34 @@ extern NSMenu* sApplicationMenu; // Application menu shared by all menubars
 // defined in nsChildView.mm
 extern BOOL                gSomeMenuBarPainted;
 
+#if !defined(MAC_OS_X_VERSION_10_9) || \
+    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_9
+
+enum NSWindowOcclusionState {
+  NSWindowOcclusionStateVisible = 0x1 << 1
+};
+
+@interface NSWindow(OcclusionState)
+- (NSWindowOcclusionState) occlusionState;
+@end
+
+#endif
+
+#if !defined(MAC_OS_X_VERSION_10_10) || \
+    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_10
+
+enum NSWindowTitleVisibility {
+  NSWindowTitleVisible = 0,
+  NSWindowTitleHidden  = 1
+};
+
+@interface NSWindow(TitleVisibility)
+- (void)setTitleVisibility:(NSWindowTitleVisibility)visibility;
+- (void)setTitlebarAppearsTransparent:(BOOL)isTitlebarTransparent;
+@end
+
+#endif
+
 #if !defined(MAC_OS_X_VERSION_10_12) || \
     MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_12
 
@@ -454,6 +482,15 @@ nsresult nsCocoaWindow::CreateNativeWindow(const NSRect &aRect,
   // Create the window
   mWindow = [[windowClass alloc] initWithContentRect:contentRect styleMask:features 
                                  backing:NSBackingStoreBuffered defer:YES];
+
+  if ([mWindow respondsToSelector:@selector(setTitleVisibility:)]) {
+    // By default, hide window titles.
+    [mWindow setTitleVisibility:NSWindowTitleHidden];
+  }
+  if ([mWindow respondsToSelector:@selector(setTitlebarAppearsTransparent:)]) {
+    // By default, hide window titlebars.
+    [mWindow setTitlebarAppearsTransparent:YES];
+  }
 
   // setup our notification delegate. Note that setDelegate: does NOT retain.
   mDelegate = [[WindowDelegate alloc] initWithGeckoWindow:this];
@@ -853,9 +890,11 @@ nsCocoaWindow::Show(bool bState)
       // appear above the parent and move when the parent does. Setting this
       // needs to happen after the _setWindowNumber calls above, otherwise the
       // window doesn't focus properly.
-      if (nativeParentWindow && mPopupLevel == ePopupLevelParent)
+      if (nativeParentWindow && mPopupLevel == ePopupLevelParent) {
         [nativeParentWindow addChildWindow:mWindow
                             ordered:NSWindowAbove];
+        [mWindow setLevel:NSPopUpMenuWindowLevel];
+      }
     }
     else {
       NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
@@ -1330,6 +1369,7 @@ nsCocoaWindow::HideWindowChrome(bool aShouldHide)
   enumerator = [childWindows objectEnumerator];
   while ((child = [enumerator nextObject])) {
     [mWindow addChildWindow:child ordered:NSWindowAbove];
+    [mWindow setLevel:NSPopUpMenuWindowLevel];
   }
 
   // Show the new window.
@@ -2213,7 +2253,13 @@ nsCocoaWindow::SetDrawsTitle(bool aDrawTitle)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
-  [mWindow setWantsTitleDrawn:aDrawTitle];
+  if (![mWindow drawsContentsIntoWindowFrame]) {
+    // If we don't draw into the window frame, we always want to display window
+    // titles.
+    [mWindow setWantsTitleDrawn:YES];
+  } else {
+    [mWindow setWantsTitleDrawn:aDrawTitle];
+  }
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
@@ -2756,6 +2802,7 @@ GetDPI(NSWindow* aWindow)
 @interface NSView(FrameViewMethodSwizzling)
 - (NSPoint)FrameView__closeButtonOrigin;
 - (NSPoint)FrameView__fullScreenButtonOrigin;
+- (BOOL)FrameView__wantsFloatingTitlebar;
 @end
 
 @implementation NSView(FrameViewMethodSwizzling)
@@ -2776,6 +2823,11 @@ GetDPI(NSWindow* aWindow)
     return [(ToolbarWindow*)[self window] fullScreenButtonPositionWithDefaultPosition:defaultPosition];
   }
   return defaultPosition;
+}
+
+- (BOOL)FrameView__wantsFloatingTitlebar
+{
+  return NO;
 }
 
 @end
@@ -2870,6 +2922,9 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
   static IMP our_fullScreenButtonOrigin =
     class_getMethodImplementation([NSView class],
                                   @selector(FrameView__fullScreenButtonOrigin));
+  static IMP our_wantsFloatingTitlebar =
+    class_getMethodImplementation([NSView class],
+                                  @selector(FrameView__wantsFloatingTitlebar));
 
   if (![gSwizzledFrameViewClasses containsObject:frameViewClass]) {
     // Either of these methods might be implemented in both a subclass of
@@ -2891,6 +2946,14 @@ static NSMutableSet *gSwizzledFrameViewClasses = nil;
         _fullScreenButtonOrigin != our_fullScreenButtonOrigin) {
       nsToolkit::SwizzleMethods(frameViewClass, @selector(_fullScreenButtonOrigin),
                                 @selector(FrameView__fullScreenButtonOrigin));
+    }
+    IMP _wantsFloatingTitlebar =
+      class_getMethodImplementation(frameViewClass,
+                                    @selector(_wantsFloatingTitlebar));
+    if (_wantsFloatingTitlebar &&
+        _wantsFloatingTitlebar != our_wantsFloatingTitlebar) {
+      nsToolkit::SwizzleMethods(frameViewClass, @selector(_wantsFloatingTitlebar),
+                                @selector(FrameView__wantsFloatingTitlebar));
     }
     [gSwizzledFrameViewClasses addObject:frameViewClass];
   }
@@ -3008,6 +3071,9 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
   if (changed) {
     [self updateContentViewSize];
     [self reflowTitlebarElements];
+    if ([self respondsToSelector:@selector(setTitlebarAppearsTransparent:)]) {
+      [self setTitlebarAppearsTransparent:mDrawsIntoWindowFrame];
+    }
   }
 }
 
@@ -3019,6 +3085,10 @@ static const NSString* kStateCollectionBehavior = @"collectionBehavior";
 - (void)setWantsTitleDrawn:(BOOL)aDrawTitle
 {
   mDrawTitle = aDrawTitle;
+  if ([self respondsToSelector:@selector(setTitleVisibility:)]) {
+    [self setTitleVisibility:mDrawTitle ? NSWindowTitleVisible :
+                                          NSWindowTitleHidden];
+  }
 }
 
 - (BOOL)wantsTitleDrawn

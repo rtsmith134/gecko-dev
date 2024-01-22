@@ -384,6 +384,10 @@ menuitem.menuitem-iconic {
   -moz-binding: url("chrome://global/content/bindings/menu.xml#menuitem-iconic");
 }
 
+menuitem.menuitem-non-iconic-accel {
+  -moz-binding: url("chrome://global/content/bindings/menu.xml#menuitem-non-iconic-accel");
+}
+
 menuitem[description] {
   -moz-binding: url("chrome://global/content/bindings/menu.xml#menuitem-iconic-desc-noaccel");
 }

@@ -1376,6 +1376,12 @@ let loadManifestFromRDF = Task.async(function*(aUri, aStream) {
 });
 
 function defineSyncGUID(aAddon) {
+  try {
+    // BLUEGRIFFON BMO bug 1277295
+    let storage = Services.storage;
+  }
+  catch(e) {}
+
   // Define .syncGUID as a lazy property which is also settable
   Object.defineProperty(aAddon, "syncGUID", {
     get: () => {

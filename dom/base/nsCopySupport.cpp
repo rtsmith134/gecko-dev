@@ -155,7 +155,8 @@ SelectionCopyHelper(nsISelection *aSel, nsIDocument *aDoc,
 
   // The mime type is ultimately text/html if the encoder successfully encoded
   // the selection as text/html.
-  bool encodedTextHTML = mimeType.EqualsLiteral(kHTMLMime);
+  bool encodedTextHTML = mimeType.EqualsLiteral(kHTMLMime) ||
+                         mimeType.EqualsLiteral("application/xhtml+xml");
 
   // First, prepare the text/plain clipboard flavor.
   nsAutoString textPlainBuf;
@@ -558,8 +559,9 @@ static nsresult AppendDOMNode(nsITransferable *aTransferable,
 
   // init encoder with document and node
   rv = docEncoder->NativeInit(document, NS_LITERAL_STRING(kHTMLMime),
-                              nsIDocumentEncoder::OutputAbsoluteLinks |
-                              nsIDocumentEncoder::OutputEncodeW3CEntities);
+                              Preferences::GetBool("clipboard.absoluteLinks", true)
+                                ? nsIDocumentEncoder::OutputEncodeCharacterEntities | nsIDocumentEncoder::OutputAbsoluteLinks
+                                : nsIDocumentEncoder::OutputEncodeCharacterEntities);
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = docEncoder->SetNativeNode(aDOMNode);

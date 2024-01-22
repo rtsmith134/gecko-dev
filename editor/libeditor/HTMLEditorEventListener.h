@@ -34,6 +34,7 @@ protected:
   virtual nsresult MouseDown(nsIDOMMouseEvent* aMouseEvent) override;
   virtual nsresult MouseUp(nsIDOMMouseEvent* aMouseEvent) override;
   virtual nsresult MouseClick(nsIDOMMouseEvent* aMouseEvent) override;
+  virtual nsresult MouseMove(nsIDOMMouseEvent* aMouseEvent) override;
 };
 
 } // namespace mozilla

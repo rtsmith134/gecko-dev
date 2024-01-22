@@ -1395,6 +1395,13 @@ PuppetScreenManager::GetPrimaryScreen(nsIScreen** outScreen)
 }
 
 NS_IMETHODIMP
+PuppetScreenManager::ScreenForIndex(uint32_t aIndex, nsIScreen**outScreen)
+{
+  NS_IF_ADDREF(*outScreen = mOneScreen.get());
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 PuppetScreenManager::ScreenForRect(int32_t inLeft,
                                    int32_t inTop,
                                    int32_t inWidth,

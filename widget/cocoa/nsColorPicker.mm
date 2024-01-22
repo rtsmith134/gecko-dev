@@ -9,6 +9,10 @@
 #include "nsCocoaUtils.h"
 #include "nsThreadUtils.h"
 
+#include "nsCSSValue.h"
+#include "nsCSSParser.h"
+#include "nsRuleNode.h"
+
 using namespace mozilla;
 
 static unsigned int
@@ -37,7 +41,7 @@ HexStrToInt(NSString* str)
   nsColorPicker* mColorPicker;
 }
 - (id)initWithPicker:(nsColorPicker*)aPicker;
-- (void)open:(NSColor*)aInitialColor title:(NSString*)aTitle;
+- (void)open:(NSColor*)aInitialColor title:(NSString*)aTitle showsAlpha:(BOOL)aShowsAlpha;
 - (void)retarget:(nsColorPicker*)aPicker;
 - (void)colorChanged:(NSColorPanel*)aPanel;
 @end
@@ -52,14 +56,16 @@ HexStrToInt(NSString* str)
   return self;
 }
 
-- (void)open:(NSColor*)aInitialColor title:(NSString*)aTitle
+- (void)open:(NSColor*)aInitialColor title:(NSString*)aTitle showsAlpha:(BOOL)aShowsAlpha
 {
   [mColorPanel setTitle:aTitle];
-  [mColorPanel setColor:aInitialColor];
   [mColorPanel setTarget:self];
-  [mColorPanel setAction:@selector(colorChanged:)];
+  [mColorPanel setShowsAlpha:aShowsAlpha];
   [mColorPanel setDelegate:self];
-  [mColorPanel makeKeyAndOrderFront:nil];
+  [mColorPanel orderFront:nil];
+  [mColorPanel setAction:nil];
+  [mColorPanel setColor:aInitialColor];
+  [mColorPanel setAction:@selector(colorChanged:)];
 }
 
 - (void)colorChanged:(NSColorPanel*)aPanel
@@ -103,12 +109,13 @@ nsColorPicker::~nsColorPicker()
 
 NS_IMETHODIMP
 nsColorPicker::Init(mozIDOMWindowProxy* aParent, const nsAString& aTitle,
-                    const nsAString& aInitialColor)
+                    const nsAString& aInitialColor, bool aShowAlpha)
 {
   MOZ_ASSERT(NS_IsMainThread(),
       "Color pickers can only be opened from main thread currently");
   mTitle = aTitle;
   mColor = aInitialColor;
+  mShowsAlpha = aShowAlpha;
 
   if (sColorPanelWrapper) {
     // Update current wrapper to target the new input instead
@@ -123,33 +130,43 @@ nsColorPicker::Init(mozIDOMWindowProxy* aParent, const nsAString& aTitle,
 /* static */ NSColor*
 nsColorPicker::GetNSColorFromHexString(const nsAString& aColor)
 {
-  NSString* str = nsCocoaUtils::ToNSString(aColor);
+  nsCSSValue value;
+  nsCSSParser parser;
+  if (!parser.ParseColorString(aColor, nullptr, 0, value)) {
+    return [NSColor colorWithDeviceRed: 0 green: 0 blue: 0 alpha: 1];
+  }
 
-  double red = HexStrToInt([str substringWithRange:NSMakeRange(1, 2)]) / 255.0;
-  double green = HexStrToInt([str substringWithRange:NSMakeRange(3, 2)]) / 255.0;
-  double blue = HexStrToInt([str substringWithRange:NSMakeRange(5, 2)]) / 255.0;
+  nscolor color;
+  if (!nsRuleNode::ComputeColor(value, nullptr, nullptr, color)) {
+    return [NSColor colorWithDeviceRed: 0 green: 0 blue: 0 alpha: 1];
+  }
 
-  return [NSColor colorWithDeviceRed: red green: green blue: blue alpha: 1.0];
+  return [NSColor colorWithRed: ((float)NS_GET_R(color))/255.0
+                         green: ((float)NS_GET_G(color))/255.0
+                          blue: ((float)NS_GET_B(color))/255.0
+                         alpha: ((float)NS_GET_A(color))/255.0];
 }
 
 /* static */ void
 nsColorPicker::GetHexStringFromNSColor(NSColor* aColor, nsAString& aResult)
 {
-  CGFloat redFloat, greenFloat, blueFloat;
-
-  NSColor* color = aColor;
-  @try {
-    [color getRed:&redFloat green:&greenFloat blue:&blueFloat alpha: nil];
-  } @catch (NSException* e) {
-    color = [color colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
-    [color getRed:&redFloat green:&greenFloat blue:&blueFloat alpha: nil];
+  CGFloat redFloat, greenFloat, blueFloat, alphaFloat;
+  [aColor getRed: &redFloat green: &greenFloat blue: &blueFloat alpha: &alphaFloat];
+  if (alphaFloat < 1.0f) {
+    nsCocoaUtils::GetStringForNSString([NSString stringWithFormat:@"rgba(%d, %d, %d, %1.2f)",
+                                         (int)(redFloat * 255 + 0.5f),
+                                         (int)(greenFloat * 255 + 0.5f),
+                                         (int)(blueFloat * 255 + 0.5f),
+                                         (float) alphaFloat],
+                                       aResult);
   }
-
-  nsCocoaUtils::GetStringForNSString([NSString stringWithFormat:@"#%02x%02x%02x",
-                                       (int)(redFloat * 255),
-                                       (int)(greenFloat * 255),
-                                       (int)(blueFloat * 255)],
-                                     aResult);
+  else {
+    nsCocoaUtils::GetStringForNSString([NSString stringWithFormat:@"#%02x%02x%02x",
+                                         (int)(redFloat * 255 + 0.5f),
+                                         (int)(greenFloat * 255 + 0.5f),
+                                         (int)(blueFloat * 255 + 0.5f)],
+                                       aResult);
+  }
 }
 
 NS_IMETHODIMP
@@ -159,7 +176,8 @@ nsColorPicker::Open(nsIColorPickerShownCallback* aCallback)
   mCallback = aCallback;
 
   [sColorPanelWrapper open:GetNSColorFromHexString(mColor)
-              title:nsCocoaUtils::ToNSString(mTitle)];
+              title:nsCocoaUtils::ToNSString(mTitle)
+              showsAlpha:mShowsAlpha];
 
   NS_ADDREF_THIS();
 
@@ -169,7 +187,12 @@ nsColorPicker::Open(nsIColorPickerShownCallback* aCallback)
 void
 nsColorPicker::Update(NSColor* aColor)
 {
-  GetHexStringFromNSColor(aColor, mColor);
+  NSColor *color = aColor;
+  if ([[aColor colorSpaceName] isEqualToString:NSNamedColorSpace])        {
+    color = [aColor colorUsingColorSpace:[NSColorSpace genericRGBColorSpace]];
+  }
+
+  GetHexStringFromNSColor(color, mColor);
   mCallback->Update(mColor);
 }
 

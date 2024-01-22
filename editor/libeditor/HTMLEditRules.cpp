@@ -471,6 +471,8 @@ HTMLEditRules::AfterEditInner(EditAction action,
       bDamagedRange = true;
   }
 
+  nsresult rv;
+
   if (bDamagedRange && !((action == EditAction::undo) ||
                          (action == EditAction::redo))) {
     // don't let any txns in here move the selection around behind our back.
@@ -503,7 +505,10 @@ HTMLEditRules::AfterEditInner(EditAction action,
     }
 
     // clean up any empty nodes in the selection
-    nsresult rv = RemoveEmptyNodes();
+    if ((action != EditAction::insertNode) &&
+        (action != EditAction::htmlPaste) &&
+        (action != EditAction::loadHTML))
+      rv = RemoveEmptyNodes();
     NS_ENSURE_SUCCESS(rv, rv);
 
     // attempt to transform any unneeded nbsp's into spaces after doing various operations
@@ -563,12 +568,11 @@ HTMLEditRules::AfterEditInner(EditAction action,
 
   NS_ENSURE_STATE(mHTMLEditor);
 
-  nsresult rv =
-    mHTMLEditor->HandleInlineSpellCheck(action, selection,
-                                        GetAsDOMNode(mRangeItem->startNode),
-                                        mRangeItem->startOffset,
-                                        rangeStartParent, rangeStartOffset,
-                                        rangeEndParent, rangeEndOffset);
+  rv = mHTMLEditor->HandleInlineSpellCheck(action, selection,
+                                           GetAsDOMNode(mRangeItem->startNode),
+                                           mRangeItem->startOffset,
+                                           rangeStartParent, rangeStartOffset,
+                                           rangeEndParent, rangeEndOffset);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // detect empty doc
@@ -1359,40 +1363,8 @@ HTMLEditRules::WillInsertText(EditAction aAction,
       // its a lot cheaper to search the input string for only newlines than
       // it is to search for both tabs and newlines.
       if (isPRE || IsPlaintextEditor()) {
-        while (unicodeBuf && pos != -1 &&
-               pos < static_cast<int32_t>(inString->Length())) {
-          int32_t oldPos = pos;
-          int32_t subStrLen;
-          pos = tString.FindChar(nsCRT::LF, oldPos);
-
-          if (pos != -1) {
-            subStrLen = pos - oldPos;
-            // if first char is newline, then use just it
-            if (!subStrLen) {
-              subStrLen = 1;
-            }
-          } else {
-            subStrLen = tString.Length() - oldPos;
-            pos = tString.Length();
-          }
-
-          nsDependentSubstring subStr(tString, oldPos, subStrLen);
-
-          // is it a return?
-          if (subStr.Equals(newlineStr)) {
-            NS_ENSURE_STATE(mHTMLEditor);
-            nsCOMPtr<Element> br =
-              mHTMLEditor->CreateBRImpl(address_of(curNode), &curOffset,
-                                        nsIEditor::eNone);
-            NS_ENSURE_STATE(br);
-            pos++;
-          } else {
-            NS_ENSURE_STATE(mHTMLEditor);
-            rv = mHTMLEditor->InsertTextImpl(subStr, address_of(curNode),
-                                             &curOffset, doc);
-            NS_ENSURE_SUCCESS(rv, rv);
-          }
-        }
+        rv = mHTMLEditor->InsertTextImpl(tString, address_of(curNode), &curOffset, doc);
+        NS_ENSURE_SUCCESS(rv, rv);
       } else {
         NS_NAMED_LITERAL_STRING(tabStr, "\t");
         NS_NAMED_LITERAL_STRING(spacesStr, "    ");
@@ -4627,7 +4599,7 @@ HTMLEditRules::CreateStyleForInsertText(Selection& aSelection,
       NS_ENSURE_STATE(mHTMLEditor);
       rv = mHTMLEditor->SetInlinePropertyOnNode(*node->AsContent(),
                                                 *item->tag, &item->attr,
-                                                item->value);
+                                                item->value, false);
       NS_ENSURE_SUCCESS(rv, rv);
       item = mHTMLEditor->mTypeInState->TakeSetProperty();
     }
@@ -6608,6 +6580,7 @@ HTMLEditRules::SplitParagraph(nsIDOMNode *aPara,
     nsCOMPtr<nsIDOMNode> parent = EditorBase::GetNodeLocation(child, &offset);
     aSelection->Collapse(parent,offset);
   }
+  ClearCachedStyles();
   return NS_OK;
 }
 
@@ -6662,6 +6635,9 @@ HTMLEditRules::ReturnInListItem(Selection& aSelection,
       rv = htmlEditor->DeleteNode(&aListItem);
       NS_ENSURE_SUCCESS(rv, rv);
 
+      ClearCachedStyles();
+      htmlEditor->mTypeInState->ClearAllProps();
+
       // Time to insert a paragraph
       nsIAtom& paraAtom = DefaultParagraphSeparator();
       // We want a wrapper even if we separate with <br>
@@ -6714,6 +6690,8 @@ HTMLEditRules::ReturnInListItem(Selection& aSelection,
 
           nsIAtom* listAtom = nodeAtom == nsGkAtoms::dt ? nsGkAtoms::dd
                                                         : nsGkAtoms::dt;
+          ClearCachedStyles();
+          htmlEditor->mTypeInState->ClearAllProps();
           nsCOMPtr<Element> newListItem =
             htmlEditor->CreateNode(listAtom, list, itemOffset + 1);
           NS_ENSURE_STATE(newListItem);

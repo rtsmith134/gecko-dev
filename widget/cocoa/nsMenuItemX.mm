@@ -259,6 +259,29 @@ void nsMenuItemX::SetKeyEquiv()
       uint8_t modifiers = nsMenuUtilsX::GeckoModifiersForNodeAttribute(modifiersStr);
 
       unsigned int macModifiers = nsMenuUtilsX::MacModifiersForGeckoModifiers(modifiers);
+      // If we're empty, try the keyCode instead.
+      if (keyChar.Equals(NS_LITERAL_STRING(" ")) || keyChar.IsEmpty()) {
+
+        keyContent->GetAttr(kNameSpaceID_None, nsGkAtoms::keycode, keyChar);
+
+        if (keyChar.Equals(NS_LITERAL_STRING("VK_F2"))) {
+          unichar ch[1];
+          ch[0] = NSF2FunctionKey;
+          macModifiers |= NSFunctionKeyMask;
+          [mNativeMenuItem setKeyEquivalentModifierMask:macModifiers];
+          [mNativeMenuItem setKeyEquivalent:[NSString stringWithCharacters:ch length:1]];
+          return;
+        }
+        else if (keyChar.Equals(NS_LITERAL_STRING("VK_F4"))) {
+          unichar ch[1];
+          ch[0] = NSF4FunctionKey;
+          macModifiers |= NSFunctionKeyMask;
+          [mNativeMenuItem setKeyEquivalentModifierMask:macModifiers];
+          [mNativeMenuItem setKeyEquivalent:[NSString stringWithCharacters:ch length:1]];
+          return;
+        }
+      }
+
       [mNativeMenuItem setKeyEquivalentModifierMask:macModifiers];
 
       NSString *keyEquivalent = [[NSString stringWithCharacters:(unichar*)keyChar.get()

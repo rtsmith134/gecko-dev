@@ -7407,6 +7407,13 @@ nsDocument::GetMozSyntheticDocument(bool *aSyntheticDocument)
   return NS_OK;
 }
 
+ NS_IMETHODIMP
+nsDocument::GetHasXMLDeclaration(bool *aHasXMLDeclaration)
+{
+  *aHasXMLDeclaration = mXMLDeclarationBits & XML_DECLARATION_BITS_DECLARATION_EXISTS;
+  return NS_OK;
+}
+
 NS_IMETHODIMP
 nsDocument::GetDocumentURI(nsAString& aDocumentURI)
 {

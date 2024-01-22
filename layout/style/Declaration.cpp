@@ -662,10 +662,7 @@ Declaration::GetPropertyValueInternal(
   nsCSSCompressedDataBlock *data = importantCount ? mImportantData : mData;
   switch (aProperty) {
     case eCSSProperty_margin:
-    case eCSSProperty_padding:
-    case eCSSProperty_border_color:
-    case eCSSProperty_border_style:
-    case eCSSProperty_border_width: {
+    case eCSSProperty_padding: {
       const nsCSSPropertyID* subprops =
         nsCSSProps::SubpropertyEntryFor(aProperty);
       MOZ_ASSERT(nsCSSProps::GetStringValue(subprops[0]).Find("-top") !=
@@ -743,6 +740,9 @@ Declaration::GetPropertyValueInternal(
       // If we have a non-default value for any of the properties that
       // this shorthand sets but cannot specify, we have to return the
       // empty string.
+      /* BLUEGRIFFON: 'border' should not reset 'border-image'
+       * Cf. https://lists.w3.org/Archives/Public/www-style/2017Nov/0018.html
+
       if (data->ValueFor(eCSSProperty_border_image_source)->GetUnit() !=
             eCSSUnit_None ||
           !data->HasDefaultBorderImageSlice() ||
@@ -759,6 +759,7 @@ Declaration::GetPropertyValueInternal(
             eCSSUnit_None) {
         break;
       }
+      */
 
       const nsCSSPropertyID* subproptables[3] = {
         nsCSSProps::SubpropertyEntryFor(eCSSProperty_border_color),
@@ -783,7 +784,57 @@ Declaration::GetPropertyValueInternal(
       }
       // tweak aProperty and fall through
       aProperty = eCSSProperty_border_top;
-      MOZ_FALLTHROUGH;
+      const nsCSSPropertyID* subprops =
+        nsCSSProps::SubpropertyEntryFor(aProperty);
+      MOZ_ASSERT(StringEndsWith(nsCSSProps::GetStringValue(subprops[2]),
+                                NS_LITERAL_CSTRING("-color")),
+                 "third subprop must be the color property");
+
+      bool ok = AppendValueToString(subprops[0], aValue, aSerialization);
+      if (ok) {
+        aValue.Append(u' ');
+        ok = AppendValueToString(subprops[1], aValue, aSerialization);
+        if (ok) {
+          const nsCSSValue *colorValue = data->ValueFor(subprops[2]);
+          bool isCurrentColor =
+            colorValue->GetUnit() == eCSSUnit_EnumColor &&
+            colorValue->GetIntValue() == NS_COLOR_CURRENTCOLOR;
+
+          // Don't output a third value when it's currentcolor.
+          if (!isCurrentColor) {
+            aValue.Append(u' ');
+            ok = AppendValueToString(subprops[2], aValue, aSerialization);
+          }
+        }
+      }
+
+      if (!ok) {
+        aValue.Truncate();
+      }
+      break;
+    }
+    case eCSSProperty_border_color:
+    case eCSSProperty_border_style:
+    case eCSSProperty_border_width: {
+      const nsCSSPropertyID* subprops =
+        nsCSSProps::SubpropertyEntryFor(aProperty);
+      MOZ_ASSERT(nsCSSProps::GetStringValue(subprops[0]).Find("-top") !=
+                 kNotFound, "first subprop must be top");
+      MOZ_ASSERT(nsCSSProps::GetStringValue(subprops[1]).Find("-right") !=
+                 kNotFound, "second subprop must be right");
+      MOZ_ASSERT(nsCSSProps::GetStringValue(subprops[2]).Find("-bottom") !=
+                 kNotFound, "third subprop must be bottom");
+      MOZ_ASSERT(nsCSSProps::GetStringValue(subprops[3]).Find("-left") !=
+                 kNotFound, "fourth subprop must be left");
+      const nsCSSValue* vals[4] = {
+        data->ValueFor(subprops[0]),
+        data->ValueFor(subprops[1]),
+        data->ValueFor(subprops[2]),
+        data->ValueFor(subprops[3])
+      };
+      nsCSSValue::AppendSidesShorthandToString(subprops, vals, aValue,
+                                               aSerialization);
+      break;
     }
     case eCSSProperty_border_top:
     case eCSSProperty_border_right:

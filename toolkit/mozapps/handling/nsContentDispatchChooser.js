@@ -62,12 +62,44 @@ nsContentDispatchChooser.prototype =
     params.appendElement(aURI);
     params.appendElement(aWindowContext);
 
+    // if a modal window is already shown, we need to open the app chooser
+    // as a modal window otherwise it will be unresponsive; bug 687423
+    var wm = Cc["@mozilla.org/appshell/window-mediator;1"].
+               getService(Ci.nsIWindowMediator);
+    var enumerator = wm.getXULWindowEnumerator(null);
+    var inModalState = false;
+    while (!inModalState && enumerator.hasMoreElements()) {
+      var win = enumerator.getNext();
+      var windowDocShell = win.QueryInterface(Ci.nsIXULWindow).docShell;
+  
+      var containedDocShells = windowDocShell.getDocShellEnumerator(
+                                        Ci.nsIDocShellTreeItem.typeChrome,
+                                        Ci.nsIDocShell.ENUMERATE_FORWARDS);
+
+      while (!inModalState && containedDocShells.hasMoreElements()) {
+        // Get the corresponding document for this docshell
+        var childDocShell = containedDocShells.getNext();
+
+        // We don't want it if it's not done loading.
+        if (childDocShell.busyFlags != Ci.nsIDocShell.BUSY_FLAGS_NONE)
+          continue;
+
+        // Ensure that we are only returning true if it is indeed modal
+        var chrome = win.QueryInterface(Ci.nsIInterfaceRequestor).
+                         getInterface(Ci.nsIWebBrowserChrome);
+        if (chrome.isWindowModal()) {
+          inModalState = true;
+        }
+      }
+    }
+
     var ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
              getService(Ci.nsIWindowWatcher);
     ww.openWindow(window,
                   CONTENT_HANDLING_URL,
                   null,
-                  "chrome,dialog=yes,resizable,centerscreen",
+                  "chrome,dialog=yes,resizable,centerscreen"
+                    + (inModalState ? ",modal" : ""),
                   params);
   },
 

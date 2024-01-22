@@ -2716,31 +2716,6 @@ nsFocusManager::DetermineElementToMoveFocus(nsPIDOMWindowOuter* aWindow,
     }
   }
   else {
-#ifdef MOZ_XUL
-    if (aType != MOVEFOCUS_CARET) {
-      // if there is no focus, yet a panel is open, focus the first item in
-      // the panel
-      nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
-      if (pm)
-        popupFrame = pm->GetTopPopup(ePopupTypePanel);
-    }
-#endif
-    if (popupFrame) {
-      // When there is a popup open, and no starting content, start the search
-      // at the topmost popup.
-      startContent = popupFrame->GetContent();
-      NS_ASSERTION(startContent, "Popup frame doesn't have a content node");
-      // Unless we are searching for documents, set the root content to the
-      // popup as well, so that we don't tab-navigate outside the popup.
-      // When navigating by documents, we start at the popup but can navigate
-      // outside of it to look for other panels and documents.
-      if (!forDocumentNavigation) {
-        rootContent = startContent;
-      }
-
-      doc = startContent ? startContent->GetComposedDoc() : nullptr;
-    }
-    else {
       // Otherwise, for content shells, start from the location of the caret.
       nsCOMPtr<nsIDocShell> docShell = aWindow->GetDocShell();
       if (docShell && docShell->ItemType() != nsIDocShellTreeItem::typeChrome) {
@@ -2772,13 +2747,27 @@ nsFocusManager::DetermineElementToMoveFocus(nsPIDOMWindowOuter* aWindow,
         }
       }
 
+#ifdef MOZ_XUL
+    else {
+      // if there is no focus, yet a panel is open, focus the first item in
+      // the panel
+      nsXULPopupManager* pm = nsXULPopupManager::GetInstance();
+      if (pm)
+        popupFrame = pm->GetTopPopup(ePopupTypePanel);
+      if (popupFrame) {
+        rootContent = popupFrame->GetContent();
+        NS_ASSERTION(rootContent, "Popup frame doesn't have a content node");
+        startContent = rootContent;
+      }
+    }
+#endif
+
       if (!startContent) {
         // otherwise, just use the root content as the starting point
         startContent = rootContent;
         NS_ENSURE_TRUE(startContent, NS_OK);
       }
     }
-  }
 
   // Check if the starting content is the same as the content assigned to the
   // retargetdocumentfocus attribute. Is so, we don't want to start searching

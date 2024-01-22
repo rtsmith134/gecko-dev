@@ -20,6 +20,7 @@ interface nsIEditorObserver;
 interface nsIEditActionListener;
 interface nsIInlineSpellChecker;
 interface nsITransferable;
+interface nsIEditorMouseObserver;
 
 %{C++
 namespace mozilla {
@@ -31,7 +32,7 @@ struct IMEState;
 
 native IMEState(mozilla::widget::IMEState);
 
-[scriptable, uuid(094be624-f0bf-400f-89e2-6a84baab9474)]
+[scriptable, uuid(EE1D66E6-1F4E-4A70-AEA9-23E1EFC17E92)]
 interface nsIEditor  : nsISupports
 {
 %{C++
@@ -535,6 +536,9 @@ interface nsIEditor  : nsISupports
 
   /** Remove an EditorObserver from the editor's list of observers. */
   void removeEditorObserver(in nsIEditorObserver observer);
+
+  void addEditorMouseObserver(in nsIEditorMouseObserver observer);
+  void removeEditorMouseObserver(in nsIEditorMouseObserver observer);
 
   /** add an EditActionListener to the editors list of listeners. */
   void addEditActionListener(in nsIEditActionListener listener);

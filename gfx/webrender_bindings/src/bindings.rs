@@ -709,7 +709,7 @@ pub unsafe extern "C" fn wr_renderer_readback(renderer: &mut WrRenderer,
 
     renderer.gl().flush();
 
-    let mut slice = slice::from_raw_parts_mut(dst_buffer, buffer_size);
+    let slice = slice::from_raw_parts_mut(dst_buffer, buffer_size);
     renderer.gl().read_pixels_into_buffer(0,
                                           0,
                                           width as gl::GLsizei,

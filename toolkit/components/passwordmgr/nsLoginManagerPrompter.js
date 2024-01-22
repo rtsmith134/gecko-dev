@@ -1420,10 +1420,11 @@ LoginManagerPrompter.prototype = {
    * Given a content DOM window, returns the chrome window and browser it's in.
    */
   _getChromeWindow(aWindow) {
-    let windows = Services.wm.getEnumerator(null);
+    let windows = Services.wm.getEnumerator("bluegriffon");
     while (windows.hasMoreElements()) {
       let win = windows.getNext();
-      let browser = win.gBrowser.getBrowserForContentWindow(aWindow);
+      // let browser = win.gBrowser.getBrowserForContentWindow(aWindow);
+      let browser = win.EditorUtils.getCurrentTabEditor();
       if (browser) {
         return { win, browser };
       }

@@ -215,6 +215,27 @@ bool NS_ColorNameToRGB(const nsAString& aColorName, nscolor* aResult)
   return false;
 }
 
+bool NS_RGBToColorName(nscolor aColor, nsAString& aResult)
+{
+  uint8_t a = NS_GET_A(aColor);
+  if (a < 255)
+    return false;
+  uint8_t r = NS_GET_R(aColor);
+  uint8_t g = NS_GET_G(aColor);
+  uint8_t b = NS_GET_B(aColor);
+  uint32_t colorIndex;
+  for (colorIndex = 0; colorIndex < eColorName_COUNT; colorIndex++) {
+    nscolor matchingColor = kColors[colorIndex];
+    if (NS_GET_R(matchingColor) == r
+        && NS_GET_G(matchingColor) == g
+        && NS_GET_B(matchingColor) == b) {
+      aResult.AppendASCII(kColorNames[colorIndex]);
+      return true;
+    }
+  }
+  return false;
+}
+
 // Returns kColorNames, an array of all possible color names, and sets
 // *aSizeArray to the size of that array. Do NOT call free() on this array.
 const char * const * NS_AllColorNames(size_t *aSizeArray)

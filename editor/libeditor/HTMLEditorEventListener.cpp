@@ -67,7 +67,54 @@ HTMLEditorEventListener::MouseUp(nsIDOMMouseEvent* aMouseEvent)
   aMouseEvent->GetClientY(&clientY);
   htmlEditor->MouseUp(clientX, clientY, element);
 
+  bool isShiftKey;
+  rv = aMouseEvent->GetShiftKey(&isShiftKey);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (htmlEditor->NotifyEditorMouseObservers(EditorBase::kMouseUp,
+                                             clientX, clientY,
+                                             element, isShiftKey)) {
+    nsCOMPtr<nsIDOMEvent> event = do_QueryInterface(aMouseEvent);
+    event->PreventDefault();
+    return NS_OK;
+  }
+
   return EditorEventListener::MouseUp(aMouseEvent);
+}
+
+nsresult
+HTMLEditorEventListener::MouseMove(nsIDOMMouseEvent* aMouseEvent)
+{
+  NS_ENSURE_TRUE(mEditorBase, NS_ERROR_NOT_AVAILABLE);
+
+  if (!aMouseEvent) {
+    //non-ui event passed in.  bad things.
+    return NS_OK;
+  }
+
+  HTMLEditor* htmlEditor = mEditorBase->AsHTMLEditor();
+
+  nsCOMPtr<nsIDOMEventTarget> target;
+  nsCOMPtr<nsIDOMEvent> event = do_QueryInterface(aMouseEvent);
+  nsresult res = event->GetExplicitOriginalTarget(getter_AddRefs(target));
+  NS_ENSURE_SUCCESS(res, res);
+  NS_ENSURE_TRUE(target, NS_ERROR_NULL_POINTER);
+  nsCOMPtr<nsIDOMElement> element = do_QueryInterface(target);
+
+  int32_t clientX, clientY;
+  aMouseEvent->GetClientX(&clientX);
+  aMouseEvent->GetClientY(&clientY);
+
+  bool isShiftKey;
+  res = aMouseEvent->GetShiftKey(&isShiftKey);
+  NS_ENSURE_SUCCESS(res, res);
+  if (htmlEditor->NotifyEditorMouseObservers(EditorBase::kMouseMove,
+                                             clientX, clientY,
+                                             element, isShiftKey)) {
+    event->PreventDefault();
+    return NS_OK;
+  }
+
+  return EditorEventListener::MouseMove(aMouseEvent);
 }
 
 nsresult
@@ -96,6 +143,10 @@ HTMLEditorEventListener::MouseDown(nsIDOMMouseEvent* aMouseEvent)
   if (!htmlEditor->IsAcceptableInputEvent(mousedownEvent)) {
     return EditorEventListener::MouseDown(aMouseEvent);
   }
+
+  int32_t clientX, clientY;
+  aMouseEvent->GetClientX(&clientX);
+  aMouseEvent->GetClientY(&clientY);
 
   // Detect only "context menu" click
   // XXX This should be easier to do!
@@ -196,10 +247,19 @@ HTMLEditorEventListener::MouseDown(nsIDOMMouseEvent* aMouseEvent)
     }
   } else if (!isContextClick && buttonNumber == 0 && clickCount == 1) {
     // if the target element is an image, we have to display resizers
-    int32_t clientX, clientY;
-    aMouseEvent->GetClientX(&clientX);
-    aMouseEvent->GetClientY(&clientY);
     htmlEditor->MouseDown(clientX, clientY, element, aMouseEvent->AsEvent());
+  }
+
+  nsCOMPtr<nsIDOMNode> targetNode = do_QueryInterface(target);
+  bool isShiftKey;
+  rv = aMouseEvent->GetShiftKey(&isShiftKey);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (htmlEditor->NotifyEditorMouseObservers(EditorBase::kMouseDown,
+                                             clientX, clientY,
+                                             element, isShiftKey)) {
+    nsCOMPtr<nsIDOMEvent> event = do_QueryInterface(aMouseEvent);
+    event->PreventDefault();
+    return NS_OK;
   }
 
   return EditorEventListener::MouseDown(aMouseEvent);

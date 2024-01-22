@@ -19,7 +19,7 @@ interface nsIURI;
  * @version 0.1
  * @see imagelib2
  */
-[scriptable, builtinclass, uuid(bfdf23ff-378e-402e-8a6c-840f0c82b6c3)]
+[scriptable, builtinclass, uuid(862388D5-EB14-4E0D-931C-F4FAD05FB5F2)]
 interface imgICache : nsISupports
 {
   /**
@@ -38,7 +38,7 @@ interface imgICache : nsISupports
    * @throws NS_ERROR_NOT_AVAILABLE if \a uri was unable to be removed from
    * the cache.
    */
-  [noscript] void removeEntry(in nsIURI uri, [optional] in nsIDOMDocument doc);
+  void removeEntry(in nsIURI uri, [optional] in nsIDOMDocument doc);
 
   /**
    * Find Properties

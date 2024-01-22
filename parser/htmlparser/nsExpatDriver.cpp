@@ -962,7 +962,9 @@ nsExpatDriver::HandleError()
   if (mSink && shouldReportError) {
     rv = mSink->ReportError(errorText.get(), 
                             sourceText.get(), 
-                            serr, 
+                            serr,
+                            lineNumber,
+                            colNumber,
                             &shouldReportError);
     if (NS_FAILED(rv)) {
       shouldReportError = true;
@@ -980,7 +982,7 @@ nsExpatDriver::HandleError()
     nsCOMPtr<nsIConsoleService> cs
       (do_GetService(NS_CONSOLESERVICE_CONTRACTID));  
     if (cs) {
-      cs->LogMessage(serr);
+      //cs->LogMessage(serr);
     }
   }
 

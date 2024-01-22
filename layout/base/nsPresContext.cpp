@@ -2168,6 +2168,20 @@ nsPresContext::SetPrintSettings(nsIPrintSettings *aPrintSettings)
     mPrintSettings = aPrintSettings;
 }
 
+void
+nsPresContext::SetMedium(const nsAString& aMedium)
+{
+  if (aMedium.EqualsLiteral("screen")) {
+    mMedium = nsGkAtoms::screen;
+    mType =  eContext_Galley;
+  } else {
+    mMedium = nsGkAtoms::print;
+    mType =  eContext_PageLayout;
+    mPaginated = true;
+  }
+  MediaFeatureValuesChanged(eRestyle_ForceDescendants, NS_STYLE_HINT_REFLOW);
+}
+
 bool
 nsPresContext::EnsureVisible()
 {

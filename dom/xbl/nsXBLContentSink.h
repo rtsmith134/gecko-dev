@@ -119,6 +119,8 @@ protected:
   NS_IMETHOD ReportError(const char16_t* aErrorText,
                          const char16_t* aSourceText,
                          nsIScriptError *aError,
+                         uint32_t aLineNumber,
+                         uint32_t aColNumber,
                          bool *_retval) override;
 
 protected:

@@ -334,7 +334,8 @@ public:
 
   virtual PColorPickerParent*
   AllocPColorPickerParent(const nsString& aTitle,
-                          const nsString& aInitialColor) override;
+                          const nsString& aInitialColor,
+                          const bool &aShowsAlpha) override;
 
   virtual bool
   DeallocPColorPickerParent(PColorPickerParent* aColorPicker) override;

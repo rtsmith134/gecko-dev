@@ -17,9 +17,11 @@ class ColorPickerParent : public PColorPickerParent
 {
  public:
   ColorPickerParent(const nsString& aTitle,
-                    const nsString& aInitialColor)
+                    const nsString& aInitialColor,
+                    bool aShowsAlpha)
   : mTitle(aTitle)
   , mInitialColor(aInitialColor)
+  , mShowsAlpha(aShowsAlpha)
   {}
 
   virtual mozilla::ipc::IPCResult RecvOpen() override;
@@ -53,6 +55,7 @@ class ColorPickerParent : public PColorPickerParent
 
   nsString mTitle;
   nsString mInitialColor;
+  bool     mShowsAlpha;
 };
 
 } // namespace dom

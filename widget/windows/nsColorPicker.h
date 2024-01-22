@@ -48,12 +48,14 @@ public:
   NS_DECL_ISUPPORTS
 
   NS_IMETHOD Init(mozIDOMWindowProxy* parent, const nsAString& title,
-                  const nsAString& aInitialColor);
+                  const nsAString& aInitialColor,
+                  bool aShowsAlpha);
   NS_IMETHOD Open(nsIColorPickerShownCallback* aCallback);
 
 private:
   COLORREF mInitialColor;
   nsCOMPtr<nsIWidget> mParentWidget;
+  bool mShowsAlpha;
 };
 
 #endif // nsColorPicker_h__

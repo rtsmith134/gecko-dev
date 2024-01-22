@@ -28,6 +28,10 @@
   <script type="application/javascript"
           src="chrome://global/content/contentAreaUtils.js"/>
 
+  <keyset>
+    <key id="escapeKey" keycode="VK_ESCAPE" oncommand="window.close()"/>
+  </keyset>
+
   <popupset>
     <!-- menu for an addon item -->
     <menupopup id="addonitem-popup">

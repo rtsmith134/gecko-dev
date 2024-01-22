@@ -211,6 +211,13 @@ nsStyleUpdatingCommand::ToggleState(nsIEditor *aEditor)
   if (NS_FAILED(rv) || !params)
     return rv;
 
+  bool isCSS;
+  htmlEditor->GetIsCSSEnabled(&isCSS);
+  if (isCSS
+      && (mTagName == nsGkAtoms::b
+          || mTagName == nsGkAtoms::i
+          || mTagName == nsGkAtoms::u))
+    htmlEditor->SetIsCSSEnabled(false);
   // tags "href" and "name" are special cases in the core editor
   // they are used to remove named anchor/link and shouldn't be used for insertion
   bool doTagRemoval;
@@ -252,6 +259,7 @@ nsStyleUpdatingCommand::ToggleState(nsIEditor *aEditor)
     aEditor->EndTransaction();
   }
 
+  htmlEditor->SetIsCSSEnabled(isCSS);
   return rv;
 }
 
@@ -463,7 +471,15 @@ nsIndentCommand::DoCommand(const char *aCommandName, nsISupports *refCon)
 
   nsresult rv = NS_OK;
   if (editor) {
+    bool isCssEnabled;
+    nsresult rv = editor->GetIsCSSEnabled(&isCssEnabled);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = editor->SetIsCSSEnabled(true);
+    NS_ENSURE_SUCCESS(rv, rv);
+
     rv = editor->Indent(NS_LITERAL_STRING("indent"));
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = editor->SetIsCSSEnabled(isCssEnabled);
   }
 
   return rv;
@@ -512,7 +528,17 @@ nsOutdentCommand::DoCommand(const char *aCommandName, nsISupports *refCon)
 {
   nsCOMPtr<nsIHTMLEditor> htmlEditor = do_QueryInterface(refCon);
   if (htmlEditor)
-    return htmlEditor->Indent(NS_LITERAL_STRING("outdent"));
+  {
+    bool isCssEnabled;
+    nsresult rv = htmlEditor->GetIsCSSEnabled(&isCssEnabled);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = htmlEditor->SetIsCSSEnabled(true);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = htmlEditor->Indent(NS_LITERAL_STRING("outdent"));
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = htmlEditor->SetIsCSSEnabled(isCssEnabled);
+  }
 
   return NS_OK;
 }
@@ -919,10 +945,19 @@ nsAlignCommand::GetCurrentState(nsIEditor *aEditor, nsICommandParams *aParams)
   nsCOMPtr<nsIHTMLEditor> htmlEditor = do_QueryInterface(aEditor);
   NS_ENSURE_TRUE(htmlEditor, NS_ERROR_FAILURE);
 
+  bool isCssEnabled;
+  nsresult rv = htmlEditor->GetIsCSSEnabled(&isCssEnabled);
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = htmlEditor->SetIsCSSEnabled(true);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsIHTMLEditor::EAlignment firstAlign;
   bool outMixed;
-  nsresult rv = htmlEditor->GetAlignment(&outMixed, &firstAlign);
+  rv = htmlEditor->GetAlignment(&outMixed, &firstAlign);
 
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = htmlEditor->SetIsCSSEnabled(isCssEnabled);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsAutoString outStateString;
@@ -959,7 +994,14 @@ nsAlignCommand::SetState(nsIEditor *aEditor, nsString& newState)
   nsCOMPtr<nsIHTMLEditor> htmlEditor = do_QueryInterface(aEditor);
   NS_ENSURE_TRUE(htmlEditor, NS_ERROR_FAILURE);
 
-  return htmlEditor->Align(newState);
+  bool isCssEnabled;
+  nsresult rv = htmlEditor->GetIsCSSEnabled(&isCssEnabled);
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = htmlEditor->SetIsCSSEnabled(true);
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = htmlEditor->Align(newState);
+  NS_ENSURE_SUCCESS(rv, rv);
+  return htmlEditor->SetIsCSSEnabled(isCssEnabled);
 }
 
 nsAbsolutePositioningCommand::nsAbsolutePositioningCommand()

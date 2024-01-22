@@ -63,13 +63,6 @@ nsXHTMLContentSerializer::Init(uint32_t aFlags, uint32_t aWrapColumn,
                               const char* aCharSet, bool aIsCopying,
                               bool aRewriteEncodingDeclaration)
 {
-  // The previous version of the HTML serializer did implicit wrapping
-  // when there is no flags, so we keep wrapping in order to keep
-  // compatibility with the existing calling code
-  // XXXLJ perhaps should we remove this default settings later ?
-  if (aFlags & nsIDocumentEncoder::OutputFormatted ) {
-      aFlags = aFlags | nsIDocumentEncoder::OutputWrap;
-  }
 
   nsresult rv;
   rv = nsXMLContentSerializer::Init(aFlags, aWrapColumn, aCharSet, aIsCopying, aRewriteEncodingDeclaration);
@@ -662,7 +655,16 @@ nsXHTMLContentSerializer::LineBreakBeforeOpen(int32_t aNamespaceID, nsIAtom* aNa
       aName == nsGkAtoms::select ||
       aName == nsGkAtoms::option ||
       aName == nsGkAtoms::script ||
-      aName == nsGkAtoms::html) {
+      aName == nsGkAtoms::html ||
+      aName == nsGkAtoms::head ||
+      //aName == nsGkAtoms::body ||
+      aName == nsGkAtoms::table ||
+      aName == nsGkAtoms::caption ||
+      aName == nsGkAtoms::tbody ||
+      aName == nsGkAtoms::thead ||
+      aName == nsGkAtoms::tfoot ||
+      aName == nsGkAtoms::tr ||
+      aName == nsGkAtoms::td) {
     return true;
   }
   else {
@@ -689,12 +691,14 @@ nsXHTMLContentSerializer::LineBreakAfterOpen(int32_t aNamespaceID, nsIAtom* aNam
 
   if ((aName == nsGkAtoms::html) ||
       (aName == nsGkAtoms::head) ||
-      (aName == nsGkAtoms::body) ||
+      // (aName == nsGkAtoms::body) ||
       (aName == nsGkAtoms::ul) ||
       (aName == nsGkAtoms::ol) ||
       (aName == nsGkAtoms::dl) ||
       (aName == nsGkAtoms::table) ||
       (aName == nsGkAtoms::tbody) ||
+      (aName == nsGkAtoms::thead) ||
+      (aName == nsGkAtoms::tfoot) ||
       (aName == nsGkAtoms::tr) ||
       (aName == nsGkAtoms::br) ||
       (aName == nsGkAtoms::meta) ||
@@ -782,12 +786,15 @@ nsXHTMLContentSerializer::MaybeEnterInPreContent(nsIContent* aNode)
     return;
   }
 
-  if (IsElementPreformatted(aNode) ||
+  PRBool disableEntityEncoding =
       aNode->IsAnyOfHTMLElements(nsGkAtoms::script,
                                  nsGkAtoms::style,
                                  nsGkAtoms::noscript,
-                                 nsGkAtoms::noframes)) {
+                                 nsGkAtoms::noframes);
+  if (IsElementPreformatted(aNode) || disableEntityEncoding) {
     PreLevel()++;
+    if (disableEntityEncoding)
+      ++mDisableEntityEncoding;
   }
 }
 
@@ -799,12 +806,15 @@ nsXHTMLContentSerializer::MaybeLeaveFromPreContent(nsIContent* aNode)
     return;
   }
 
-  if (IsElementPreformatted(aNode) ||
+  PRBool disableEntityEncoding =
       aNode->IsAnyOfHTMLElements(nsGkAtoms::script,
                                  nsGkAtoms::style,
                                  nsGkAtoms::noscript,
-                                 nsGkAtoms::noframes)) {
+                                 nsGkAtoms::noframes);
+  if (IsElementPreformatted(aNode) || disableEntityEncoding) {
     --PreLevel();
+    if (disableEntityEncoding)
+      --mDisableEntityEncoding;
   }
 }
 

@@ -182,7 +182,7 @@ pub const kCTFontPriorityDynamic: CTFontPriority = 50000;
 pub const kCTFontPriorityProcess: CTFontPriority = 60000;
 
 #[repr(C)]
-struct __CTFontDescriptor;
+pub struct __CTFontDescriptor;
 
 pub type CTFontDescriptorRef = *const __CTFontDescriptor;
 

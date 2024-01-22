@@ -130,8 +130,8 @@ HTMLEditor::HTMLEditor()
   , mPositionedObjectBorderTop(0)
   , mGridSize(0)
   , mDefaultParagraphSeparator(
-      Preferences::GetBool("editor.use_div_for_default_newlines", true)
-      ? ParagraphSeparator::div : ParagraphSeparator::br)
+      Preferences::GetBool("bluegriffon.returnKey.createsParagraph", true)
+      ? ParagraphSeparator::p : ParagraphSeparator::br)
 {
 }
 
@@ -300,7 +300,8 @@ HTMLEditor::Init(nsIDOMDocument* aDoc,
 
     if (!IsInteractionAllowed()) {
       // ignore any errors from this in case the file is missing
-      AddOverrideStyleSheet(NS_LITERAL_STRING("resource://gre/res/EditorOverride.css"));
+      // BlueGriffon uses its own EditorOverride.css
+      //AddOverrideStyleSheet(NS_LITERAL_STRING("resource://gre/res/EditorOverride.css"));
     }
 
     RefPtr<Selection> selection = GetSelection();
@@ -2623,11 +2624,6 @@ HTMLEditor::CreateElementWithDefaults(const nsAString& aTagName)
       rv.SuppressException();
       return nullptr;
     }
-  } else if (tagName.EqualsLiteral("td")) {
-    nsresult rv =
-      SetAttributeOrEquivalent(
-        newElement, nsGkAtoms::valign, NS_LITERAL_STRING("top"), true);
-    NS_ENSURE_SUCCESS(rv, nullptr);
   }
   // ADD OTHER TAGS HERE
 
@@ -3664,7 +3660,7 @@ HTMLEditor::IsTextPropertySetByContent(nsIDOMNode* aNode,
     if (element) {
       nsAutoString tag, value;
       element->GetTagName(tag);
-      if (propName.Equals(tag, nsCaseInsensitiveStringComparator())) {
+      if (propName.IsEmpty() || propName.Equals(tag, nsCaseInsensitiveStringComparator())) {
         bool found = false;
         if (aAttribute && !aAttribute->IsEmpty()) {
           element->GetAttribute(*aAttribute, value);
@@ -5280,4 +5276,35 @@ HTMLEditor::GetEditorRoot()
   return GetActiveEditingHost();
 }
 
+NS_IMETHODIMP
+HTMLEditor::GetMedium(nsAString & outValue)
+{
+  nsCOMPtr<nsIPresShell> ps = GetPresShell();
+
+  if (ps && ps->GetPresContext())
+  {
+    nsIAtom* medium = ps->GetPresContext()->Medium();
+    if (medium == nsGkAtoms::screen)
+      outValue.AssignLiteral("screen");
+    else
+      outValue.AssignLiteral("print");
+    return NS_OK;
+  }
+  return NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP
+HTMLEditor::SetMedium(const nsAString& aMedium)
+{
+  nsCOMPtr<nsIPresShell> ps = GetPresShell();
+
+  if (ps && ps->GetPresContext())
+  {
+    ps->GetPresContext()->SetMedium(aMedium);
+    return NS_OK;
+  }
+  return NS_ERROR_FAILURE;
+}
+
 } // namespace mozilla
+

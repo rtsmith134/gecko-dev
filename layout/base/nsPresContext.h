@@ -333,6 +333,7 @@ public:
       return mMedium;
     return mMediaEmulated;
   }
+  void SetMedium(const nsAString& aMedium);
 
   /*
    * Render the document as if being viewed on a device with the specified

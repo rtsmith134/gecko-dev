@@ -13452,6 +13452,9 @@ CSSParserImpl::ParseBorderSide(const nsCSSPropertyID aPropIDs[],
       AppendValue(kBorderColorIDs[index], values[2]);
     }
 
+    /* BLUEGRIFFON: 'border' should not reset 'border-image'
+     * Cf. https://lists.w3.org/Archives/Public/www-style/2017Nov/0018.html
+
     static const nsCSSPropertyID kBorderColorsProps[] = {
       eCSSProperty__moz_border_top_colors,
       eCSSProperty__moz_border_right_colors,
@@ -13482,6 +13485,7 @@ CSSParserImpl::ParseBorderSide(const nsCSSPropertyID aPropIDs[],
     NS_FOR_CSS_SIDES(side) {
       AppendValue(kBorderColorsProps[side], extraValue);
     }
+    */
   }
   else {
     // Just set our one side

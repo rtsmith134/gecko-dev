@@ -56,6 +56,7 @@ const PREF_GETADDONS_CACHE_ENABLED = "extensions.getAddons.cache.enabled";
 const PREF_GETADDONS_CACHE_ID_ENABLED = "extensions.%ID%.getAddons.cache.enabled";
 const PREF_UI_TYPE_HIDDEN = "extensions.ui.%TYPE%.hidden";
 const PREF_UI_LASTCATEGORY = "extensions.ui.lastCategory";
+const PREF_CLOSE_ADDONS_MANAGER_ON_ESCAPE = "extensions.closeOnEscape";
 
 const LOADING_MSG_DELAY = 100;
 
@@ -200,6 +201,17 @@ function initialize(event) {
     return;
   }
   document.removeEventListener("load", initialize, true);
+
+  // should we allow the window to close when the user hits the ESC key?
+  let closeOnEscape = false; // default for Firefox 4+
+  try {
+    closeOnEscape = Services.prefs.getBoolPref(PREF_CLOSE_ADDONS_MANAGER_ON_ESCAPE);
+  } catch(e) { }
+  if (!closeOnEscape) {
+    let escapeKeyElt = document.getElementById("escapeKey");
+    if (escapeKeyElt)
+      escapeKeyElt.setAttribute("disabled", "true");
+  }
 
   let globalCommandSet = document.getElementById("globalCommandSet");
   globalCommandSet.addEventListener("command", function(event) {
@@ -2998,7 +3010,7 @@ var gListView = {
     let prop = aIsInstall ? "mInstall" : "mAddon";
 
     for (let item of this._listBox.childNodes) {
-      if (item[prop] == aObj) {
+      if (prop in item && item[prop] == aObj) {
         this._listBox.removeChild(item);
         this.showEmptyNotice(this._listBox.itemCount == 0);
         return;

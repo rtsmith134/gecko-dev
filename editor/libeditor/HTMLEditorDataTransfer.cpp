@@ -81,6 +81,8 @@
 #include "nsXPCOM.h"
 #include "nscore.h"
 #include "nsContentUtils.h"
+#include "nsIIOService.h"
+#include "nsIURL.h"
 
 class nsIAtom;
 class nsILoadContext;
@@ -800,6 +802,8 @@ HTMLEditor::PrepareHTMLTransferable(nsITransferable** aTransferable)
       (*aTransferable)->AddDataFlavor(kNativeHTMLMime);
       (*aTransferable)->AddDataFlavor(kHTMLMime);
       (*aTransferable)->AddDataFlavor(kFileMime);
+      if (Preferences::GetBool("bluegriffon.osx.clipboard.rtf.enabled"))
+        (*aTransferable)->AddDataFlavor(kRTFMime);
 
       switch (Preferences::GetInt("clipboard.paste_image_type", 1)) {
         case 0:  // prefer JPEG over PNG over GIF encoding
@@ -1106,24 +1110,50 @@ HTMLEditor::InsertObject(const nsACString& aType,
       type.EqualsLiteral(kPNGImageMime) ||
       type.EqualsLiteral(kGIFImageMime) ||
       insertAsImage) {
-    nsCString imageData;
-    if (insertAsImage) {
-      rv = nsContentUtils::SlurpFileToString(fileObj, imageData);
-      NS_ENSURE_SUCCESS(rv, rv);
-    } else {
-      nsCOMPtr<nsIInputStream> imageStream = do_QueryInterface(aObject);
-      NS_ENSURE_TRUE(imageStream, NS_ERROR_FAILURE);
+    nsAutoString stuffToPaste;
+    if (insertAsImage && Preferences::GetBool("bluegriffon.drag_n_drop.images.as_url", true)) {
+      nsAutoString path;
 
-      rv = NS_ConsumeStream(imageStream, UINT32_MAX, imageData);
+      nsCOMPtr<nsIIOService> ioService(do_GetService(NS_IOSERVICE_CONTRACTID, &rv));
       NS_ENSURE_SUCCESS(rv, rv);
+      nsCOMPtr<nsIURI> fileObjURI;
+      rv = ioService->NewFileURI(fileObj, getter_AddRefs(fileObjURI));
 
-      rv = imageStream->Close();
+      fileObj->GetPath(path);
+
+      nsCOMPtr<nsIDocument> doc = GetDocument();
+      nsIURI *docUri = doc->GetDocumentURI();
+      NS_ENSURE_TRUE(docUri, NS_ERROR_FAILURE);
+
+      nsCOMPtr<nsIURL> docUrl = do_QueryInterface(docUri);
+      nsCOMPtr<nsIURL> fileObjUrl = do_QueryInterface(fileObjURI);
+      nsAutoCString relativeSpec;
+      rv = docUrl->GetRelativeSpec(fileObjUrl, relativeSpec);
+      if (NS_FAILED(rv)) return rv;
+
+      stuffToPaste.AssignLiteral("<IMG src=\"");
+      AppendUTF8toUTF16(relativeSpec, stuffToPaste);
+      stuffToPaste.AppendLiteral("\" alt=\"\" >");
+    }
+    else {
+      nsCString imageData;
+      if (insertAsImage) {
+        rv = nsContentUtils::SlurpFileToString(fileObj, imageData);
+        NS_ENSURE_SUCCESS(rv, rv);
+      } else {
+        nsCOMPtr<nsIInputStream> imageStream = do_QueryInterface(aObject);
+        NS_ENSURE_TRUE(imageStream, NS_ERROR_FAILURE);
+
+        rv = NS_ConsumeStream(imageStream, UINT32_MAX, imageData);
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        rv = imageStream->Close();
+        NS_ENSURE_SUCCESS(rv, rv);
+      }
+
+      rv = ImgFromData(type, imageData, stuffToPaste);
       NS_ENSURE_SUCCESS(rv, rv);
     }
-
-    nsAutoString stuffToPaste;
-    rv = ImgFromData(type, imageData, stuffToPaste);
-    NS_ENSURE_SUCCESS(rv, rv);
 
     AutoEditBatch beginBatching(this);
     rv = DoInsertHTMLWithContext(stuffToPaste, EmptyString(), EmptyString(),
@@ -1209,6 +1239,11 @@ HTMLEditor::InsertFromTransferable(nsITransferable* transferable,
         }
       }
     }
+    else if (Preferences::GetBool("bluegriffon.osx.clipboard.rtf.enabled") &&
+             bestFlavor.EqualsLiteral(kRTFMime)) {
+      bestFlavor.AssignLiteral(kHTMLMime);
+      // Fall through the next case
+    }
     if (bestFlavor.EqualsLiteral(kHTMLMime) ||
         bestFlavor.EqualsLiteral(kUnicodeMime) ||
         bestFlavor.EqualsLiteral(kMozTextInternal)) {
@@ -1229,14 +1264,40 @@ HTMLEditor::InsertFromTransferable(nsITransferable* transferable,
       }
 
       if (!stuffToPaste.IsEmpty()) {
+
+        // Find where the <body> tag starts.
+        nsAString::const_iterator beginbody, endbody;
+        stuffToPaste.BeginReading(beginbody);
+        stuffToPaste.EndReading(endbody);
+        bool foundbody = CaseInsensitiveFindInReadable(NS_LITERAL_STRING("<body"),
+                                                         beginbody, endbody);
+        nsAutoString realStuffToPaste;
+        if (foundbody) {
+          nsAString::const_iterator endstartbody;
+          stuffToPaste.EndReading(endstartbody);
+         bool foundstartbody = CaseInsensitiveFindInReadable(NS_LITERAL_STRING(">"),
+                                                              endbody, endstartbody);
+          if (!foundstartbody)
+            return NS_ERROR_FAILURE;
+
+          nsAString::const_iterator beginclosebody, endclosebody;
+          stuffToPaste.BeginReading(beginclosebody);
+          stuffToPaste.EndReading(endclosebody);
+
+          // Find the index before "</body>"
+          CaseInsensitiveFindInReadable(NS_LITERAL_STRING("</body>"), beginclosebody, endclosebody);
+          realStuffToPaste.Assign(Substring(endstartbody, beginclosebody));
+        }
+        else
+          realStuffToPaste.Assign(stuffToPaste);
         AutoEditBatch beginBatching(this);
         if (bestFlavor.EqualsLiteral(kHTMLMime)) {
-          rv = DoInsertHTMLWithContext(stuffToPaste,
+          rv = DoInsertHTMLWithContext(realStuffToPaste,
                                        aContextStr, aInfoStr, flavor,
                                        aSourceDoc,
                                        aDestinationNode, aDestOffset,
                                        aDoDeleteSelection,
-                                       isSafe);
+                                       true);
         } else {
           rv = InsertTextAt(stuffToPaste, aDestinationNode, aDestOffset, aDoDeleteSelection);
         }

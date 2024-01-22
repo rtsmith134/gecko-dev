@@ -625,7 +625,26 @@ nsXMLContentSerializer::SerializeAttr(const nsAString& aPrefix,
   bool rawAppend = mDoRaw && aDoEscapeEntities;
   nsAString& attrString = (rawAppend) ? aStr : attrString_;
 
-  NS_ENSURE_TRUE(attrString.Append(char16_t(' '), mozilla::fallible), false);
+  //NS_ENSURE_TRUE(attrString.Append(char16_t(' '), mozilla::fallible), false);
+  if (mColPos + 1 >= mMaxColumn && !mDoRaw) {
+    if (PreLevel() > 0) {
+      AppendToStringConvertLF(mLineBreak, aStr);
+    }
+    else if (mDoFormat) {
+      AppendToStringFormatedWrapped(mLineBreak, aStr);
+      AppendIndentation(aStr);
+    }
+    else if (mDoWrap) {
+      AppendToStringWrapped(mLineBreak, aStr);
+      AppendIndentation(aStr);
+    }
+    else {
+      AppendToStringConvertLF(mLineBreak, aStr);
+    }
+  }
+  else
+    attrString.Append(char16_t(' '));
+
   if (!aPrefix.IsEmpty()) {
     NS_ENSURE_TRUE(attrString.Append(aPrefix, mozilla::fallible), false);
     NS_ENSURE_TRUE(attrString.Append(char16_t(':'), mozilla::fallible), false);
@@ -694,6 +713,8 @@ nsXMLContentSerializer::SerializeAttr(const nsAString& aPrefix,
     NS_ENSURE_TRUE(attrString.Append(sValue, mozilla::fallible), false);
     NS_ENSURE_TRUE(attrString.Append(cDelimiter, mozilla::fallible), false);
   }
+  AppendToStringConvertLF(attrString, aStr);
+  /* XXX
   if (mDoRaw || PreLevel() > 0) {
     NS_ENSURE_TRUE(AppendToStringConvertLF(attrString, aStr), false);
   }
@@ -707,6 +728,7 @@ nsXMLContentSerializer::SerializeAttr(const nsAString& aPrefix,
     NS_ENSURE_TRUE(AppendToStringConvertLF(attrString, aStr), false);
   }
 
+  */
   return true;
 }
 
@@ -906,67 +928,73 @@ nsXMLContentSerializer::AppendElementStart(Element* aElement,
   aElement->NodeInfo()->GetName(tagLocalName);
   aElement->NodeInfo()->GetNamespaceURI(tagNamespaceURI);
 
-  uint32_t skipAttr = ScanNamespaceDeclarations(content,
-                          aOriginalElement, tagNamespaceURI);
+  bool hideTag = tagNamespaceURI.LowerCaseEqualsLiteral("http://disruptive-innovations.com/zoo/bluegriffon");
+  if (!hideTag) {
+    uint32_t skipAttr = ScanNamespaceDeclarations(content,
+                            aOriginalElement, tagNamespaceURI);
+    nsIAtom *name = content->NodeInfo()->NameAtom();
+    bool lineBreakBeforeOpen = LineBreakBeforeOpen(content->GetNameSpaceID(), name);
 
-  nsIAtom *name = content->NodeInfo()->NameAtom();
-  bool lineBreakBeforeOpen = LineBreakBeforeOpen(content->GetNameSpaceID(), name);
-
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()) {
-    if (mColPos && lineBreakBeforeOpen) {
-      NS_ENSURE_TRUE(AppendNewLineToString(aStr), NS_ERROR_OUT_OF_MEMORY);
-    }
-    else {
-      NS_ENSURE_TRUE(MaybeAddNewlineForRootNode(aStr), NS_ERROR_OUT_OF_MEMORY);
-    }
-    if (!mColPos) {
-      NS_ENSURE_TRUE(AppendIndentation(aStr), NS_ERROR_OUT_OF_MEMORY);
+    if (((mDoFormat || forceFormat) && !PreLevel()) || mDoRaw) {
+      if (mColPos && lineBreakBeforeOpen) {
+        AppendNewLineToString(aStr);
+      }
+      else {
+        MaybeAddNewlineForRootNode(aStr);
+      }
+      if (!mColPos) {
+        AppendIndentation(aStr);
+      }
+      else if (mAddSpace) {
+        AppendToString(char16_t(' '), aStr);
+        mAddSpace = false;
+      }
     }
     else if (mAddSpace) {
       NS_ENSURE_TRUE(AppendToString(char16_t(' '), aStr), NS_ERROR_OUT_OF_MEMORY);
       mAddSpace = false;
     }
-  }
-  else if (mAddSpace) {
-    NS_ENSURE_TRUE(AppendToString(char16_t(' '), aStr), NS_ERROR_OUT_OF_MEMORY);
-    mAddSpace = false;
-  }
-  else {
-    NS_ENSURE_TRUE(MaybeAddNewlineForRootNode(aStr), NS_ERROR_OUT_OF_MEMORY);
-  }
+    else {
+      MaybeAddNewlineForRootNode(aStr);
+    }
 
-  // Always reset to avoid false newlines in case MaybeAddNewlineForRootNode wasn't
-  // called
-  mAddNewlineForRootNode = false;
+    // Always reset to avoid false newlines in case MaybeAddNewlineForRootNode wasn't
+    // called
+    mAddNewlineForRootNode = false;
 
-  bool addNSAttr;
-  addNSAttr = ConfirmPrefix(tagPrefix, tagNamespaceURI, aOriginalElement,
-                            false);
+    bool addNSAttr;
+    addNSAttr = ConfirmPrefix(tagPrefix, tagNamespaceURI, aOriginalElement,
+                              false);
 
-  // Serialize the qualified name of the element
-  NS_ENSURE_TRUE(AppendToString(kLessThan, aStr), NS_ERROR_OUT_OF_MEMORY);
-  if (!tagPrefix.IsEmpty()) {
-    NS_ENSURE_TRUE(AppendToString(tagPrefix, aStr), NS_ERROR_OUT_OF_MEMORY);
-    NS_ENSURE_TRUE(AppendToString(NS_LITERAL_STRING(":"), aStr), NS_ERROR_OUT_OF_MEMORY);
-  }
-  NS_ENSURE_TRUE(AppendToString(tagLocalName, aStr), NS_ERROR_OUT_OF_MEMORY);
+    if (!mNameSpaceStack.Length()
+        && tagNamespaceURI.EqualsLiteral("http://www.w3.org/1999/xhtml")
+        && !tagLocalName.EqualsLiteral("html"))
+      addNSAttr = false;
 
-  MaybeEnterInPreContent(content);
+    // Serialize the qualified name of the element
+    AppendToString(kLessThan, aStr);
+    if (!tagPrefix.IsEmpty()) {
+      AppendToString(tagPrefix, aStr);
+      AppendToString(NS_LITERAL_STRING(":"), aStr);
+    }
+    AppendToString(tagLocalName, aStr);
 
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()) {
-    NS_ENSURE_TRUE(IncrIndentation(name), NS_ERROR_OUT_OF_MEMORY);
-  }
+    MaybeEnterInPreContent(content);
 
-  NS_ENSURE_TRUE(SerializeAttributes(content, aOriginalElement, tagPrefix, tagNamespaceURI,
-                                     name, aStr, skipAttr, addNSAttr),
-                 NS_ERROR_OUT_OF_MEMORY);
+    if ((mDoFormat || forceFormat) && !PreLevel() && !mDoRaw) {
+      IncrIndentation(name);
+    }
 
-  NS_ENSURE_TRUE(AppendEndOfElementStart(aElement, aOriginalElement, aStr),
-                 NS_ERROR_OUT_OF_MEMORY);
+    SerializeAttributes(content, aOriginalElement, tagPrefix, tagNamespaceURI,
+                        name, aStr, skipAttr, addNSAttr);
 
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()
-    && LineBreakAfterOpen(content->GetNameSpaceID(), name)) {
-    NS_ENSURE_TRUE(AppendNewLineToString(aStr), NS_ERROR_OUT_OF_MEMORY);
+    AppendEndOfElementStart(aElement, aOriginalElement,
+                            aStr);
+
+    if ((mDoFormat || forceFormat) && !PreLevel()
+      && !mDoRaw && LineBreakAfterOpen(content->GetNameSpaceID(), name)) {
+      AppendNewLineToString(aStr);
+    }
   }
 
   NS_ENSURE_TRUE(AfterElementStart(content, aOriginalElement, aStr), NS_ERROR_OUT_OF_MEMORY);
@@ -1034,75 +1062,72 @@ nsXMLContentSerializer::AppendElementEnd(Element* aElement,
 
   nsIContent* content = aElement;
 
-  bool forceFormat = false, outputElementEnd;
-  outputElementEnd = CheckElementEnd(aElement, forceFormat, aStr);
-
-  nsIAtom *name = content->NodeInfo()->NameAtom();
-
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()) {
-    DecrIndentation(name);
-  }
-
-  if (!outputElementEnd) {
-    // Keep this in sync with the cleanup at the end of this method.
-    PopNameSpaceDeclsFor(aElement);
-    MaybeLeaveFromPreContent(content);
-    MaybeFlagNewlineForRootNode(aElement);
-    AfterElementEnd(content, aStr);
-    return NS_OK;
-  }
-
   nsAutoString tagPrefix, tagLocalName, tagNamespaceURI;
-
   aElement->NodeInfo()->GetPrefix(tagPrefix);
   aElement->NodeInfo()->GetName(tagLocalName);
   aElement->NodeInfo()->GetNamespaceURI(tagNamespaceURI);
 
-#ifdef DEBUG
-  bool debugNeedToPushNamespace =
-#endif
-  ConfirmPrefix(tagPrefix, tagNamespaceURI, aElement, false);
-  NS_ASSERTION(!debugNeedToPushNamespace, "Can't push namespaces in closing tag!");
+  bool hideTag = tagNamespaceURI.LowerCaseEqualsLiteral("http://disruptive-innovations.com/zoo/bluegriffon");
+  if (!hideTag) {
+    bool forceFormat = false, outputElementEnd;
+    outputElementEnd = CheckElementEnd(aElement, forceFormat, aStr);
 
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()) {
+    nsIAtom *name = content->NodeInfo()->NameAtom();
 
-    bool lineBreakBeforeClose = LineBreakBeforeClose(content->GetNameSpaceID(), name);
-
-    if (mColPos && lineBreakBeforeClose) {
-      NS_ENSURE_TRUE(AppendNewLineToString(aStr), NS_ERROR_OUT_OF_MEMORY);
+    if ((mDoFormat || forceFormat) && !PreLevel() && !mDoRaw) {
+      DecrIndentation(name);
     }
-    if (!mColPos) {
-      NS_ENSURE_TRUE(AppendIndentation(aStr), NS_ERROR_OUT_OF_MEMORY);
+
+    if (!outputElementEnd) {
+      PopNameSpaceDeclsFor(aElement);
+      MaybeFlagNewlineForRootNode(aElement);
+      return NS_OK;
+    }
+
+#ifdef DEBUG
+    bool debugNeedToPushNamespace =
+#endif
+    ConfirmPrefix(tagPrefix, tagNamespaceURI, aElement, false);
+    NS_ASSERTION(!debugNeedToPushNamespace, "Can't push namespaces in closing tag!");
+
+    if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()) {
+
+      bool lineBreakBeforeClose = LineBreakBeforeClose(content->GetNameSpaceID(), name);
+
+      if (mColPos && lineBreakBeforeClose) {
+        AppendNewLineToString(aStr);
+      }
+      if (!mColPos) {
+        AppendIndentation(aStr);
+      }
+      else if (mAddSpace) {
+        AppendToString(char16_t(' '), aStr);
+        mAddSpace = false;
+      }
     }
     else if (mAddSpace) {
       NS_ENSURE_TRUE(AppendToString(char16_t(' '), aStr), NS_ERROR_OUT_OF_MEMORY);
       mAddSpace = false;
     }
-  }
-  else if (mAddSpace) {
-    NS_ENSURE_TRUE(AppendToString(char16_t(' '), aStr), NS_ERROR_OUT_OF_MEMORY);
-    mAddSpace = false;
-  }
+    AppendToString(kEndTag, aStr);
+    if (!tagPrefix.IsEmpty()) {
+      AppendToString(tagPrefix, aStr);
+      AppendToString(NS_LITERAL_STRING(":"), aStr);
+    }
+    AppendToString(tagLocalName, aStr);
+    AppendToString(kGreaterThan, aStr);
 
-  NS_ENSURE_TRUE(AppendToString(kEndTag, aStr), NS_ERROR_OUT_OF_MEMORY);
-  if (!tagPrefix.IsEmpty()) {
-    NS_ENSURE_TRUE(AppendToString(tagPrefix, aStr), NS_ERROR_OUT_OF_MEMORY);
-    NS_ENSURE_TRUE(AppendToString(NS_LITERAL_STRING(":"), aStr), NS_ERROR_OUT_OF_MEMORY);
-  }
-  NS_ENSURE_TRUE(AppendToString(tagLocalName, aStr), NS_ERROR_OUT_OF_MEMORY);
-  NS_ENSURE_TRUE(AppendToString(kGreaterThan, aStr), NS_ERROR_OUT_OF_MEMORY);
+    PopNameSpaceDeclsFor(aElement);
 
-  // Keep what follows in sync with the cleanup in the !outputElementEnd case.
-  PopNameSpaceDeclsFor(aElement);
+    MaybeLeaveFromPreContent(content);
 
-  MaybeLeaveFromPreContent(content);
-
-  if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()
-      && LineBreakAfterClose(content->GetNameSpaceID(), name)) {
-    NS_ENSURE_TRUE(AppendNewLineToString(aStr), NS_ERROR_OUT_OF_MEMORY);
-  }
-  else {
-    MaybeFlagNewlineForRootNode(aElement);
+    if ((mDoFormat || forceFormat) && !mDoRaw && !PreLevel()
+        && LineBreakAfterClose(content->GetNameSpaceID(), name)) {
+      AppendNewLineToString(aStr);
+    }
+    else {
+      MaybeFlagNewlineForRootNode(aElement);
+    }
   }
 
   AfterElementEnd(content, aStr);
@@ -1192,6 +1217,23 @@ nsXMLContentSerializer::AppendToString(const nsAString& aStr,
     return true;
   }
   mColPos += aStr.Length();
+  nsASingleFragmentString::const_char_iterator pos, end, sequenceStart;
+
+  aStr.BeginReading(pos);
+  aStr.EndReading(end);
+  bool foundCR = PR_FALSE;
+  bool foundOtherThanCROrBlank = PR_FALSE;
+  while (pos < end) {
+    if (*pos == '\n' || *pos == '\r')
+      foundCR = PR_TRUE;
+    else if (*pos != ' ' && *pos != '\t')
+      foundOtherThanCROrBlank = PR_TRUE;
+    pos++;
+  }
+
+  if (foundCR && !foundOtherThanCROrBlank) {
+    mMayIgnoreLineBreakSequence = PR_TRUE;
+  }
   return aOutputStr.Append(aStr, mozilla::fallible);
 }
 
@@ -1323,6 +1365,10 @@ nsXMLContentSerializer::MaybeLeaveFromPreContent(nsIContent* aNode)
 bool
 nsXMLContentSerializer::AppendNewLineToString(nsAString& aStr)
 {
+  if (!PreLevel() && mMayIgnoreLineBreakSequence) {
+    mMayIgnoreLineBreakSequence = PR_FALSE;
+    return true;
+  }
   bool result = AppendToString(mLineBreak, aStr);
   mMayIgnoreLineBreakSequence = true;
   mColPos = 0;
@@ -1631,9 +1677,29 @@ nsXMLContentSerializer::AppendWrapped_NonWhitespaceSequence(
             mAddSpace = false;
             NS_ENSURE_TRUE(result, false);
           }
+          bool CRDone = PR_FALSE;
+          if (wrapPosition) {
+            CRDone = (*(aSequenceStart + wrapPosition - 1) == '\n');
+          }
           NS_ENSURE_TRUE(aOutputStr.Append(aSequenceStart, wrapPosition, mozilla::fallible), false);
 
-          NS_ENSURE_TRUE(AppendNewLineToString(aOutputStr), false);
+          if (CRDone) {
+            // we found a wrapping spot but there is a newline
+            // char right before that point... So we don't need another CR.
+            mMayIgnoreLineBreakSequence = PR_TRUE;
+            mColPos = 0;
+            mAddSpace = PR_FALSE;
+            mIsIndentationAddedOnCurrentLine = PR_FALSE;
+          }
+          else {
+            AppendNewLineToString(aOutputStr);
+          }
+
+          if (mDoFormat) {
+            AppendIndentation(aOutputStr);
+          }
+
+          mMayIgnoreLineBreakSequence = PR_TRUE;
           aPos = aSequenceStart + wrapPosition;
           aMayIgnoreStartOfLineWhitespaceSequence = true;
         }

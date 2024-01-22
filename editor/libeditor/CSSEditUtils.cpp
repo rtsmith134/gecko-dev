@@ -339,11 +339,12 @@ CSSEditUtils::IsCSSEditableProperty(nsINode* aNode,
   }
 
   // html inline styles B I TT U STRIKE and COLOR/FACE on FONT
-  if (nsGkAtoms::b == aProperty ||
-      nsGkAtoms::i == aProperty ||
+  if (//nsGkAtoms::b == aProperty ||
+      //nsGkAtoms::i == aProperty ||
       nsGkAtoms::tt == aProperty ||
-      nsGkAtoms::u == aProperty ||
+      //nsGkAtoms::u == aProperty ||
       nsGkAtoms::strike == aProperty ||
+      nsGkAtoms::nobr == aProperty ||
       (nsGkAtoms::font == aProperty && aAttribute &&
        (aAttribute == nsGkAtoms::color || aAttribute == nsGkAtoms::face))) {
     return true;
@@ -466,12 +467,13 @@ CSSEditUtils::SetCSSProperty(Element& aElement,
 nsresult
 CSSEditUtils::SetCSSPropertyPixels(Element& aElement,
                                    nsIAtom& aProperty,
-                                   int32_t aIntValue)
+                                   int32_t aIntValue,
+                                   bool aSuppressTxn)
 {
   nsAutoString s;
   s.AppendInt(aIntValue);
   return SetCSSProperty(aElement, aProperty, s + NS_LITERAL_STRING("px"),
-                        /* suppress txn */ false);
+                        /* suppress txn */ aSuppressTxn);
 }
 
 // The lowest level above the transaction; removes the value aValue from the
@@ -836,6 +838,8 @@ CSSEditUtils::GenerateCSSDeclarationsFromHTMLStyle(
     equivTable = underlineEquivTable;
   } else if (nsGkAtoms::strike == aHTMLProperty) {
     equivTable = strikeEquivTable;
+  } else if (nsGkAtoms::nobr == aHTMLProperty) {
+    equivTable = nowrapEquivTable;
   } else if (nsGkAtoms::tt == aHTMLProperty) {
     equivTable = ttEquivTable;
   } else if (aAttribute) {

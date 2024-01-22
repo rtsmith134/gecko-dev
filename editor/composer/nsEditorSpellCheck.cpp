@@ -768,7 +768,9 @@ nsEditorSpellCheck::DictionaryFetched(DictionaryFetcher* aFetcher)
     // SetCurrentDictionary was called after the fetch started.  Don't overwrite
     // that dictionary with the fetched one.
     EndUpdateDictionary();
-    aFetcher->mCallback->EditorSpellCheckDone();
+    RefPtr<DictionaryFetcher> fetcher = aFetcher;
+    if (fetcher->mCallback)
+      aFetcher->mCallback->EditorSpellCheckDone();
     return NS_OK;
   }
 
@@ -817,7 +819,9 @@ nsEditorSpellCheck::DictionaryFetched(DictionaryFetcher* aFetcher)
   nsresult rv = mSpellChecker->GetDictionaryList(&dictList);
   if (NS_WARN_IF(NS_FAILED(rv))) {
     EndUpdateDictionary();
-    aFetcher->mCallback->EditorSpellCheckDone();
+    RefPtr<DictionaryFetcher> fetcher = aFetcher;
+    if (fetcher->mCallback)
+      aFetcher->mCallback->EditorSpellCheckDone();
     return rv;
   }
 
@@ -849,7 +853,8 @@ nsEditorSpellCheck::DictionaryFetched(DictionaryFetcher* aFetcher)
           self->DeleteSuggestedWordList();
 
           self->EndUpdateDictionary();
-          fetcher->mCallback->EditorSpellCheckDone();
+          if (fetcher->mCallback)
+            fetcher->mCallback->EditorSpellCheckDone();
         },
         [self, fetcher]() {
           // May be dictionary was uninstalled ?
@@ -878,7 +883,9 @@ nsEditorSpellCheck::SetFallbackDictionary(DictionaryFetcher* aFetcher)
   nsresult rv = mSpellChecker->GetDictionaryList(&dictList);
   if (NS_WARN_IF(NS_FAILED(rv))) {
     EndUpdateDictionary();
-    aFetcher->mCallback->EditorSpellCheckDone();
+    RefPtr<DictionaryFetcher> fetcher = aFetcher;
+    if (fetcher->mCallback)
+      aFetcher->mCallback->EditorSpellCheckDone();
     return;
   }
 
@@ -972,7 +979,9 @@ nsEditorSpellCheck::SetFallbackDictionary(DictionaryFetcher* aFetcher)
            NS_ConvertUTF16toUTF8(currentDictionary).get());
 #endif
     EndUpdateDictionary();
-    aFetcher->mCallback->EditorSpellCheckDone();
+    RefPtr<DictionaryFetcher> fetcher = aFetcher;
+    if (fetcher->mCallback)
+      aFetcher->mCallback->EditorSpellCheckDone();
     return;
   }
 
@@ -1023,6 +1032,7 @@ nsEditorSpellCheck::SetFallbackDictionary(DictionaryFetcher* aFetcher)
       // the dialog if it is wrong.
       self->DeleteSuggestedWordList();
       self->EndUpdateDictionary();
-      fetcher->mCallback->EditorSpellCheckDone();
+      if (fetcher->mCallback)
+        fetcher->mCallback->EditorSpellCheckDone();
     });
 }

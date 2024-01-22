@@ -57,6 +57,8 @@ public:
   NS_IMETHOD ReportError(const char16_t* aErrorText,
                          const char16_t* aSourceText,
                          nsIScriptError* aError,
+                         uint32_t aLineNumber,
+                         uint32_t aColNumber,
                          bool* aRetval) override;
 
   // nsIContentSink
@@ -286,6 +288,8 @@ NS_IMETHODIMP
 nsXMLFragmentContentSink::ReportError(const char16_t* aErrorText, 
                                       const char16_t* aSourceText,
                                       nsIScriptError *aError,
+                                      uint32_t aLineNumber,
+                                      uint32_t aColNumber,
                                       bool *_retval)
 {
   NS_PRECONDITION(aError && aSourceText && aErrorText, "Check arguments!!!");

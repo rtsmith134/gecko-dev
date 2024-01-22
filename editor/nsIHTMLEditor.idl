@@ -22,7 +22,7 @@ class Element;
 
 [ptr] native Element (mozilla::dom::Element);
 
-[scriptable, uuid(87ee993e-985f-4a43-a974-0d9512da2fb0)]
+[scriptable, uuid(BFA533D9-358C-47CC-92FF-E89D5263D264)]
 interface nsIHTMLEditor : nsISupports
 {
 %{C++
@@ -491,6 +491,9 @@ interface nsIHTMLEditor : nsISupports
    * @return    true if CSS handled and enabled
    */
   attribute boolean isCSSEnabled;
+
+  AString getMedium();
+  void setMedium(in AString aMedium);
 
   /**
    * Add listener for insertion override

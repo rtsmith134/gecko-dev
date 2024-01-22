@@ -68,6 +68,7 @@ private:
   nsString mTitle;
   nsString mColor;
   nsString mInitialColor;
+  bool mShowsAlpha;
 };
 
 #endif // nsColorPicker_h__

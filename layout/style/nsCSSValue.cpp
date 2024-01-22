@@ -1182,20 +1182,26 @@ nsCSSValue::AppendSidesShorthandToString(const nsCSSPropertyID aProperties[],
   const nsCSSValue& value3 = *aValues[2];
   const nsCSSValue& value4 = *aValues[3];
 
+  nsAutoString valueString1, valueString2, valueString3, valueString4;
+  value1.AppendToString(aProperties[0], valueString1, aSerialization);
+  value2.AppendToString(aProperties[1], valueString2, aSerialization);
+  value3.AppendToString(aProperties[2], valueString3, aSerialization);
+  value4.AppendToString(aProperties[3], valueString4, aSerialization);
+
   MOZ_ASSERT(value1.GetUnit() != eCSSUnit_Null, "null value 1");
-  value1.AppendToString(aProperties[0], aString, aSerialization);
-  if (value1 != value2 || value1 != value3 || value1 != value4) {
+  aString.Append(valueString1);
+  if (valueString1 != valueString2 || valueString1 != valueString3 || valueString1 != valueString4) {
     aString.Append(char16_t(' '));
     MOZ_ASSERT(value2.GetUnit() != eCSSUnit_Null, "null value 2");
-    value2.AppendToString(aProperties[1], aString, aSerialization);
-    if (value1 != value3 || value2 != value4) {
+    aString.Append(valueString2);
+    if (valueString1 != valueString3 || valueString2 != valueString4) {
       aString.Append(char16_t(' '));
       MOZ_ASSERT(value3.GetUnit() != eCSSUnit_Null, "null value 3");
-      value3.AppendToString(aProperties[2], aString, aSerialization);
-      if (value2 != value4) {
+      aString.Append(valueString3);
+      if (valueString2 != valueString4) {
         aString.Append(char16_t(' '));
         MOZ_ASSERT(value4.GetUnit() != eCSSUnit_Null, "null value 4");
-        value4.AppendToString(aProperties[3], aString, aSerialization);
+        aString.Append(valueString4);
       }
     }
   }
@@ -1668,6 +1674,17 @@ nsCSSValue::AppendToString(nsCSSPropertyID aProperty, nsAString& aResult,
     }
   }
   else if (IsNumericColorUnit(unit)) {
+    bool outputCssNames = false;
+    nsXPIDLCString colorOutputType;
+    nsresult rv;
+    nsCOMPtr<nsIPrefBranch> prefBranch = do_GetService(NS_PREFSERVICE_CONTRACTID, &rv);
+    if (NS_SUCCEEDED(rv) && prefBranch) {
+      prefBranch->GetBoolPref("bluegriffon.css.colors.names.enabled", &outputCssNames);
+      prefBranch->GetCharPref("bluegriffon.css.colors.type", getter_Copies(colorOutputType));
+    }
+    bool serializeName = false;
+    bool forceHexSerialization = false;
+
     if (aSerialization == eNormalized ||
         unit == eCSSUnit_RGBColor ||
         unit == eCSSUnit_RGBAColor) {
@@ -1686,21 +1703,52 @@ nsCSSValue::AppendToString(nsCSSPropertyID aProperty, nsAString& aResult,
       if (showAlpha) {
         aResult.AppendLiteral("rgba(");
       } else {
-        aResult.AppendLiteral("rgb(");
+        if (outputCssNames) {
+          nsAutoString nameToSerialize;
+          serializeName = NS_RGBToColorName(color, nameToSerialize);
+          if (serializeName) {
+            aResult.Append(nameToSerialize);
+          }
+          else {
+            if (!PL_strcmp(colorOutputType, "hex")) {
+              forceHexSerialization = true;
+            }
+            else
+              aResult.AppendLiteral("rgb(");
+          }
+        }
+        else {
+          if (!PL_strcmp(colorOutputType, "hex")) {
+            forceHexSerialization = true;
+          }
+          else
+            aResult.AppendLiteral("rgb(");
+        }
       }
 
-      NS_NAMED_LITERAL_STRING(comma, ", ");
+      if (!serializeName) {
+        if (forceHexSerialization) {
+          nscolor color = GetColorValue();
+          aResult.Append('#');
+          aResult.AppendPrintf("%02x", NS_GET_R(color));
+          aResult.AppendPrintf("%02x", NS_GET_G(color));
+          aResult.AppendPrintf("%02x", NS_GET_B(color));
+        }
+        else {
+          NS_NAMED_LITERAL_STRING(comma, ", ");
 
-      aResult.AppendInt(NS_GET_R(color), 10);
-      aResult.Append(comma);
-      aResult.AppendInt(NS_GET_G(color), 10);
-      aResult.Append(comma);
-      aResult.AppendInt(NS_GET_B(color), 10);
-      if (showAlpha) {
-        aResult.Append(comma);
-        aResult.AppendFloat(nsStyleUtil::ColorComponentToFloat(a));
+          aResult.AppendInt(NS_GET_R(color), 10);
+          aResult.Append(comma);
+          aResult.AppendInt(NS_GET_G(color), 10);
+          aResult.Append(comma);
+          aResult.AppendInt(NS_GET_B(color), 10);
+          if (showAlpha) {
+            aResult.Append(comma);
+            aResult.AppendFloat(nsStyleUtil::ColorComponentToFloat(a));
+          }
+          aResult.Append(char16_t(')'));
+        }
       }
-      aResult.Append(char16_t(')'));
     } else if (eCSSUnit_HexColor == unit ||
                eCSSUnit_HexColorAlpha == unit) {
       nscolor color = GetColorValue();

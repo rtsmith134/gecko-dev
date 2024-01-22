@@ -350,9 +350,9 @@ HTMLEditor::StartMoving(nsIDOMElement* aHandle)
 
   // position it
   mCSSEditUtils->SetCSSPropertyPixels(*mPositioningShadow, *nsGkAtoms::width,
-                                      mPositionedObjectWidth);
+                                      mPositionedObjectWidth, true);
   mCSSEditUtils->SetCSSPropertyPixels(*mPositioningShadow, *nsGkAtoms::height,
-                                      mPositionedObjectHeight);
+                                      mPositionedObjectHeight, true);
 
   mIsMoving = true;
   return NS_OK; // XXX Looks like nobody refers this result

@@ -67,6 +67,7 @@ protected:
   void HandleEndComposition(WidgetCompositionEvent* aCompositionEvent);
   virtual nsresult MouseDown(nsIDOMMouseEvent* aMouseEvent);
   virtual nsresult MouseUp(nsIDOMMouseEvent* aMouseEvent) { return NS_OK; }
+  virtual nsresult MouseMove(nsIDOMMouseEvent* aMouseEvent) { return NS_OK; }
   virtual nsresult MouseClick(nsIDOMMouseEvent* aMouseEvent);
   nsresult Focus(InternalFocusEvent* aFocusEvent);
   nsresult Blur(InternalFocusEvent* aBlurEvent);

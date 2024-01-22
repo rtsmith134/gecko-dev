@@ -16,7 +16,7 @@ interface mozIDOMWindowProxy;
  * specifications.
  */
 
-[scriptable, uuid(d2ce78d1-40b5-49d1-b66d-5801fcb9a385)]
+[scriptable, uuid(645FAD1F-2B55-42E1-AC15-DB4A9DF27209)]
 interface nsIColorPickerShownCallback : nsISupports
 {
  /**
@@ -62,7 +62,8 @@ interface nsIColorPicker : nsISupports
   *                          parameter has to follow the format specified on top
   *                          of this file.
   */
-  void init(in mozIDOMWindowProxy parent, in AString title, in AString initialColor);
+  void init(in mozIDOMWindowProxy parent, in AString title, in AString initialColor,
+            in boolean aShowAlpha);
 
  /**
   * Opens the color dialog asynchrounously.

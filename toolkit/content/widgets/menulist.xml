@@ -545,6 +545,13 @@
           this.inputField.select();
         </body>
       </method>
+
+      <method name="getChild">
+        <parameter name="aChildName"/>
+        <body><![CDATA[
+          return document.getAnonymousElementByAttribute(this, "anonid", aChildName);
+        ]]></body>
+      </method>
     </implementation>
 
     <handlers>
@@ -579,14 +586,30 @@
 
       <handler event="keypress">
         <![CDATA[
-          // open popup if key is up arrow, down arrow, or F4
-          if (!event.ctrlKey && !event.shiftKey) {
-            if (event.keyCode == KeyEvent.DOM_VK_UP ||
-                event.keyCode == KeyEvent.DOM_VK_DOWN ||
-                (event.keyCode == KeyEvent.DOM_VK_F4 && !event.altKey)) {
+          if (event.ctrlKey && event.shiftKey)
+            return;
+
+          if (this.getAttribute("bgtype") == "csslength") {
+            var _self = this;
+            if (event.keyCode == KeyEvent.DOM_VK_UP) {
+              IncreaseLength(this, this.getAttribute("units"));
+              if (this.oninput)
+                this.oninput.call(_self);
               event.preventDefault();
-              this.open = true;
             }
+            else if (event.keyCode == KeyEvent.DOM_VK_DOWN) {
+              DecreaseLength(this, this.getAttribute("units"), !(this.getAttribute("unsigned") == "true"));
+              if (this.oninput)
+                this.oninput.call(_self);
+              event.preventDefault();
+            }
+          }
+          // open popup if key is up arrow, down arrow, or F4
+          else if (event.keyCode == KeyEvent.DOM_VK_UP ||
+                   event.keyCode == KeyEvent.DOM_VK_DOWN ||
+                   (event.keyCode == KeyEvent.DOM_VK_F4 && !event.altKey)) {
+            event.preventDefault();
+            this.open = true;
           }
         ]]>
       </handler>

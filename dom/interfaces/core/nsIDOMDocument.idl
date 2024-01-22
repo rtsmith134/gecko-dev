@@ -33,7 +33,7 @@ interface nsIDOMLocation;
  * http://dvcs.w3.org/hg/domcore/raw-file/tip/Overview.html
  */
 
-[uuid(b15fa0f4-97c1-4388-af62-2ceff7a89bdf)]
+[uuid(D792B34B-8419-4729-9E09-43C61DC2FACE)]
 interface nsIDOMDocument : nsIDOMNode
 {
   readonly attribute nsIDOMDocumentType         doctype;
@@ -79,6 +79,9 @@ interface nsIDOMDocument : nsIDOMNode
   // Introduced in DOM Level 3:
   nsIDOMNode         adoptNode(in nsIDOMNode source)
                                         raises(DOMException);
+
+  // BLUEGRIFFON
+  readonly attribute boolean hasXMLDeclaration;
 
   /**
    * Create a range

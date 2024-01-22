@@ -160,6 +160,13 @@ public:
     kIterBackward
   };
 
+  enum MouseEventType
+  {
+    kMouseDown,
+    kMouseUp,
+    kMouseMove
+  };
+
   /**
    * The default constructor. This should suffice. the setting of the
    * interfaces is done after the construction of the editor class.
@@ -193,6 +200,11 @@ public:
     eNotifyEditorObserversOfCancel
   };
   void NotifyEditorObservers(NotificationForEditorObservers aNotification);
+  bool NotifyEditorMouseObservers(MouseEventType aMouseEventType,
+                                  int32_t aClientX,
+                                  int32_t aClientY,
+                                  nsIDOMNode* aTarget,
+                                  bool aIsShiftKey);
 
   // nsIEditor methods
   NS_DECL_NSIEDITOR
@@ -961,6 +973,8 @@ public:
 
   virtual nsresult InsertFromDrop(nsIDOMEvent* aDropEvent) = 0;
 
+  nsresult RemoveNonCopyableAttributes(nsIDOMElement * aElement);
+
   /**
    * GetIMESelectionStartOffsetIn() returns the start offset of IME selection in
    * the aTextNode.  If there is no IME selection, returns -1.
@@ -1027,6 +1041,8 @@ protected:
   typedef AutoTArray<OwningNonNull<nsIEditorObserver>, 3>
             AutoEditorObserverArray;
   AutoEditorObserverArray mEditorObservers;
+  // Listen to mouse events
+  nsCOMArray<nsIEditorMouseObserver> mEditorMouseObservers;
   // Listen to overall doc state (dirty or not, just created, etc.).
   typedef AutoTArray<OwningNonNull<nsIDocumentStateListener>, 1>
             AutoDocumentStateListenerArray;

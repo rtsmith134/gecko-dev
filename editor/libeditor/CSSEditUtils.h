@@ -107,7 +107,8 @@ public:
   nsresult SetCSSProperty(dom::Element& aElement, nsIAtom& aProperty,
                           const nsAString& aValue, bool aSuppressTxn = false);
   nsresult SetCSSPropertyPixels(dom::Element& aElement,
-                                nsIAtom& aProperty, int32_t aIntValue);
+                                nsIAtom& aProperty, int32_t aIntValue,
+                                bool aSuppressTxn = false);
   nsresult RemoveCSSProperty(dom::Element& aElement,
                              nsIAtom& aProperty,
                              const nsAString& aPropertyValue,

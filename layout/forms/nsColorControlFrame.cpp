@@ -101,6 +101,8 @@ nsColorControlFrame::UpdateColor()
   nsAutoString color;
   HTMLInputElement* elt = HTMLInputElement::FromContent(mContent);
   elt->GetValue(color, CallerType::System);
+  if (color.IsEmpty())
+    return NS_OK;
   MOZ_ASSERT(!color.IsEmpty(),
              "Content node's GetValue() should return a valid color string "
              "(the default color, in case no valid color is set)");

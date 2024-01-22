@@ -116,3 +116,23 @@ UIKitScreenManager::ScreenForRect(int32_t inLeft,
 {
   return GetPrimaryScreen(outScreen);
 }
+
+NS_IMETHODIMP
+UIKitScreenManager::ScreenForIndex(uint32_t aIndex, nsIScreen**outScreen)
+{
+    NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
+
+    NSArray *ss = [NSScreen screens];
+    uint32_t numberOfScreens = [ss count];
+    if (aIndex >= numberOfScreens)
+        return NS_ERROR_FAILURE;
+  
+    NSScreen *sc = [[NSScreen screens] objectAtIndex: aIndex];
+  
+    *outScreen = ScreenForCocoaScreen(sc);
+    NS_ADDREF(*outScreen);
+  
+    return NS_OK;
+  
+    NS_OBJC_END_TRY_ABORT_BLOCK_NSRESULT;
+}

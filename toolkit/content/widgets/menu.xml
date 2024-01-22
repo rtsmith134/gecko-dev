@@ -224,6 +224,15 @@
     </content>
   </binding>
 
+  <binding id="menuitem-non-iconic-accel" extends="chrome://global/content/bindings/menu.xml#menuitem">
+    <content>
+      <xul:label class="menu-iconic-text" flex="1" xbl:inherits="value=label,accesskey,crop" crop="right"/>
+      <xul:hbox class="menu-accel-container" anonid="accel">
+        <xul:label class="menu-iconic-accel" xbl:inherits="value=acceltext"/>
+      </xul:hbox>
+    </content>
+  </binding>
+
   <binding id="menuitem-iconic-noaccel" extends="chrome://global/content/bindings/menu.xml#menuitem">
     <content>
       <xul:hbox class="menu-iconic-left" align="center" pack="center"

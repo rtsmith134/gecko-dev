@@ -441,10 +441,7 @@ TextEditor::IsSafeToInsertData(nsIDOMDocument* aSourceDoc)
     dsti->GetRootTreeItem(getter_AddRefs(root));
   }
   nsCOMPtr<nsIDocShell> docShell = do_QueryInterface(root);
-  uint32_t appType;
-  if (docShell && NS_SUCCEEDED(docShell->GetAppType(&appType))) {
-    isSafe = appType == nsIDocShell::APP_TYPE_EDITOR;
-  }
+
   if (!isSafe && aSourceDoc) {
     nsCOMPtr<nsIDocument> srcdoc = do_QueryInterface(aSourceDoc);
     NS_ASSERTION(srcdoc, "Where is our source doc?");

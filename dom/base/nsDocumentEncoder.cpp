@@ -119,6 +119,11 @@ protected:
       }
 
       if (content) {
+        nsIAtom *tag = content->NodeInfo()->NameAtom();
+        if (tag == nsGkAtoms::script
+            || tag == nsGkAtoms::style) {
+          return true;
+        }
         nsIFrame* frame = content->GetPrimaryFrame();
         if (!frame) {
           if (aNode->IsNodeOfType(nsINode::eTEXT)) {
@@ -1344,7 +1349,9 @@ nsHTMLCopyEncoder::Init(nsIDOMDocument* aDocument,
 
   // Make all links absolute when copying
   // (see related bugs #57296, #41924, #58646, #32768)
-  mFlags = aFlags | OutputAbsoluteLinks;
+  mFlags = Preferences::GetBool("clipboard.absoluteLinks", true)
+             ? aFlags | nsIDocumentEncoder::OutputAbsoluteLinks
+             : aFlags;
 
   if (!mDocument->IsScriptEnabled())
     mFlags |= OutputNoScriptContent;
@@ -1445,7 +1452,7 @@ nsHTMLCopyEncoder::SetSelection(nsISelection* aSelection)
 
   // also consider ourselves in a text widget if we can't find an html document
   nsCOMPtr<nsIHTMLDocument> htmlDoc = do_QueryInterface(mDocument);
-  if (!(htmlDoc && mDocument->IsHTMLDocument())) {
+  if (!htmlDoc) {
     mIsTextWidget = true;
     mSelection = aSelection;
     // mMimeType is set to text/plain when encoding starts.
@@ -1466,9 +1473,10 @@ nsHTMLCopyEncoder::SetSelection(nsISelection* aSelection)
     range->CloneRange(getter_AddRefs(myRange));
     NS_ENSURE_TRUE(myRange, NS_ERROR_FAILURE);
 
+    // BLUEGRIFFON, do not promote ranges for copy
     // adjust range to include any ancestors who's children are entirely selected
-    rv = PromoteRange(myRange);
-    NS_ENSURE_SUCCESS(rv, rv);
+    /*rv = PromoteRange(myRange);
+    NS_ENSURE_SUCCESS(rv, rv);*/
 
     ErrorResult result;
     nsRange* r = static_cast<nsRange*>(myRange.get());

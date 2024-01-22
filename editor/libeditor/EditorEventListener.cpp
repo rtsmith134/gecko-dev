@@ -187,6 +187,9 @@ EditorEventListener::InstallToEditor()
                                NS_LITERAL_STRING("mouseup"),
                                TrustedEventsAtCapture());
   elmP->AddEventListenerByType(this,
+                               NS_LITERAL_STRING("mousemove"),
+                               TrustedEventsAtCapture());
+  elmP->AddEventListenerByType(this,
                                NS_LITERAL_STRING("click"),
                                TrustedEventsAtCapture());
   // Focus event doesn't bubble so adding the listener to capturing phase.
@@ -279,6 +282,9 @@ EditorEventListener::UninstallFromEditor()
                                   TrustedEventsAtCapture());
   elmP->RemoveEventListenerByType(this,
                                   NS_LITERAL_STRING("mouseup"),
+                                  TrustedEventsAtCapture());
+  elmP->RemoveEventListenerByType(this,
+                                  NS_LITERAL_STRING("mousemove"),
                                   TrustedEventsAtCapture());
   elmP->RemoveEventListenerByType(this,
                                   NS_LITERAL_STRING("click"),
@@ -454,6 +460,12 @@ EditorEventListener::HandleEvent(nsIDOMEvent* aEvent)
       }
       nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aEvent);
       return NS_WARN_IF(!mouseEvent) ? NS_OK : MouseUp(mouseEvent);
+    }
+    // mousemove:
+    case eMouseMove: {
+      nsCOMPtr<nsIDOMMouseEvent> mouseEvent = do_QueryInterface(aEvent);
+      NS_ENSURE_TRUE(mouseEvent, NS_OK);
+      return NS_OK;
     }
     // click
     case eMouseClick: {

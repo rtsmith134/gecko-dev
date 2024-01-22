@@ -22,7 +22,7 @@ public:
   NS_DECL_ISUPPORTS
 
   NS_IMETHOD Init(mozIDOMWindowProxy* aParent, const nsAString& aTitle,
-                  const nsAString& aInitialColor) override;
+                  const nsAString& aInitialColor, bool aShowAlpha) override;
   NS_IMETHOD Open(nsIColorPickerShownCallback* aCallback) override;
 
   // For NSColorPanelWrapper.
@@ -44,6 +44,7 @@ private:
 
   nsString             mTitle;
   nsString             mColor;
+  bool               mShowsAlpha;
   nsCOMPtr<nsIColorPickerShownCallback> mCallback;
 };
 

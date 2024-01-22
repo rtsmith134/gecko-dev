@@ -18,7 +18,7 @@ class nsIDocument;
 [ptr] native nsINodePtr(nsINode);
 [ptr] native nsIDocumentPtr(nsIDocument);
 
-[scriptable, uuid(3d9371d8-a2ad-403e-8b0e-8885ad3562e3)]
+[scriptable, uuid(30a3161c-09e0-425e-84e6-ff952c0fd859)]
 interface nsIDocumentEncoderNodeFixup : nsISupports
 {
   /**
@@ -254,6 +254,11 @@ interface nsIDocumentEncoder : nsISupports
    */
   const unsigned long RequiresReinitAfterOutput = (1 << 28);
 
+  /**
+    * Output all non-ascii characters as numeric entities
+    */                                                                                                                                         
+   const unsigned long OutputEncodeCharacterEntities = (1 << 29);
+ 
   /**
    * Initialize with a pointer to the document and the mime type.
    * @param aDocument Document to encode.

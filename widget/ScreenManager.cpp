@@ -166,6 +166,33 @@ ScreenManager::ScreenForRect(int32_t aX, int32_t aY,
   return NS_OK;
 }
 
+NS_IMETHODIMP
+ScreenManager::ScreenForIndex(uint32_t aIndex, nsIScreen**aOutScreen)
+{
+  if (mScreenList.IsEmpty()) {
+    MOZ_LOG(sScreenLog, LogLevel::Warning,
+            ("No screen available. This can happen in xpcshell."));
+    RefPtr<Screen> ret = new Screen(LayoutDeviceIntRect(), LayoutDeviceIntRect(),
+                                    0, 0,
+                                    DesktopToLayoutDeviceScale(),
+                                    CSSToLayoutDeviceScale());
+    ret.forget(aOutScreen);
+    return NS_OK;
+  }
+  // Optimize for the common case. If the number of screens is only
+  // one then just return the primary screen.
+  if (mScreenList.Length() == 1) {
+    return GetPrimaryScreen(aOutScreen);
+  }
+
+  // which screen should we return?
+  Screen* which = mScreenList[aIndex].get();
+
+  RefPtr<Screen> ret = which;
+  ret.forget(aOutScreen);
+  return NS_OK;
+}
+
 // The screen with the menubar/taskbar. This shouldn't be needed very
 // often.
 //

@@ -306,8 +306,12 @@ void nsCocoaUtils::PrepareForNativeAppModalDialog()
   if (!hiddenWindowMenuBar)
     return;
 
+  // XXX BLUEGRIFFON ; do NOT paint the hidden menubar because otherwise, that's
+  // what's show when you close a filepicker... And in that case, menus are mostly
+  // disabled and inable to operate even on a visible window...
+   // First put up the hidden window menu bar so that app menu event handling is correct.
   // First put up the hidden window menu bar so that app menu event handling is correct.
-  hiddenWindowMenuBar->Paint();
+  //hiddenWindowMenuBar->Paint();
 
   NSMenu* mainMenu = [NSApp mainMenu];
   NS_ASSERTION([mainMenu numberOfItems] > 0, "Main menu does not have any items, something is terribly wrong!");

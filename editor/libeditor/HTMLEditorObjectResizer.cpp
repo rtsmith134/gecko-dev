@@ -527,9 +527,9 @@ HTMLEditor::StartResizing(nsIDOMElement* aHandle)
 
   // position it
   mCSSEditUtils->SetCSSPropertyPixels(*mResizingShadow, *nsGkAtoms::width,
-                                      mResizedObjectWidth);
+                                      mResizedObjectWidth, true);
   mCSSEditUtils->SetCSSPropertyPixels(*mResizingShadow, *nsGkAtoms::height,
-                                      mResizedObjectHeight);
+                                      mResizedObjectHeight, true);
 
   // add a mouse move listener to the editor
   nsresult result = NS_OK;
@@ -665,9 +665,9 @@ HTMLEditor::SetResizingInfoPosition(int32_t aX,
   // Offset info box by 20 so it's not directly under the mouse cursor.
   const int mouseCursorOffset = 20;
   mCSSEditUtils->SetCSSPropertyPixels(*mResizingInfo, *nsGkAtoms::left,
-                                      infoXPosition + mouseCursorOffset);
+                                      infoXPosition + mouseCursorOffset, true);
   mCSSEditUtils->SetCSSPropertyPixels(*mResizingInfo, *nsGkAtoms::top,
-                                      infoYPosition + mouseCursorOffset);
+                                      infoYPosition + mouseCursorOffset, true);
 
   nsCOMPtr<nsIContent> textInfo = mResizingInfo->GetFirstChild();
   ErrorResult erv;
@@ -826,13 +826,13 @@ HTMLEditor::MouseMove(nsIDOMEvent* aMouseEvent)
     int32_t newHeight = GetNewResizingHeight(clientX, clientY);
 
     mCSSEditUtils->SetCSSPropertyPixels(*mResizingShadow, *nsGkAtoms::left,
-                                        newX);
+                                        newX, true);
     mCSSEditUtils->SetCSSPropertyPixels(*mResizingShadow, *nsGkAtoms::top,
-                                        newY);
+                                        newY, true);
     mCSSEditUtils->SetCSSPropertyPixels(*mResizingShadow, *nsGkAtoms::width,
-                                        newWidth);
+                                        newWidth, true);
     mCSSEditUtils->SetCSSPropertyPixels(*mResizingShadow, *nsGkAtoms::height,
-                                        newHeight);
+                                        newHeight, true);
 
     return SetResizingInfoPosition(newX, newY, newWidth, newHeight);
   }
@@ -866,9 +866,9 @@ HTMLEditor::MouseMove(nsIDOMEvent* aMouseEvent)
     SnapToGrid(newX, newY);
 
     mCSSEditUtils->SetCSSPropertyPixels(*mPositioningShadow, *nsGkAtoms::left,
-                                        newX);
+                                        newX, true);
     mCSSEditUtils->SetCSSPropertyPixels(*mPositioningShadow, *nsGkAtoms::top,
-                                        newY);
+                                        newY, true);
   }
   return NS_OK;
 }

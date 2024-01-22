@@ -198,8 +198,10 @@ HTMLEditor::SetInlineProperty(nsIAtom* aProperty,
       }
 
       // Then loop through the list, set the property on each node
+      int32_t listCount = arrayOfNodes.Length();
       for (auto& node : arrayOfNodes) {
-        rv = SetInlinePropertyOnNode(*node, *aProperty, &aAttribute, aValue);
+        rv = SetInlinePropertyOnNode(*node, *aProperty, &aAttribute, aValue,
+                                     (1 == listCount));
         NS_ENSURE_SUCCESS(rv, rv);
       }
 
@@ -238,14 +240,17 @@ HTMLEditor::IsSimpleModifiableNode(nsIContent* aContent,
     return false;
   }
 
+  uint32_t attrCount = aContent->GetAttrCount();
+  bool noAttr = !attrCount
+                || (attrCount == 1 && aContent->GetAttrNameAt(0)->Equals(nsGkAtoms::mozdirty));
   // First check for <b>, <i>, etc.
-  if (element->IsHTMLElement(aProperty) && !element->GetAttrCount() &&
+  if (element->IsHTMLElement(aProperty) && noAttr &&
       (!aAttribute || aAttribute->IsEmpty())) {
     return true;
   }
 
   // Special cases for various equivalencies: <strong>, <em>, <s>
-  if (!element->GetAttrCount() &&
+  if (noAttr &&
       ((aProperty == nsGkAtoms::b &&
         element->IsHTMLElement(nsGkAtoms::strong)) ||
        (aProperty == nsGkAtoms::i &&
@@ -277,7 +282,8 @@ HTMLEditor::IsSimpleModifiableNode(nsIContent* aContent,
   // style supports it
   if (!mCSSEditUtils->IsCSSEditableProperty(element, aProperty, aAttribute) ||
       !element->IsHTMLElement(nsGkAtoms::span) ||
-      element->GetAttrCount() != 1 ||
+      !(attrCount == 1 || (attrCount == 2 && (element->GetAttrNameAt(0)->Equals(nsGkAtoms::mozdirty) ||
+                                              element->GetAttrNameAt(1)->Equals(nsGkAtoms::mozdirty)))) ||
       !element->HasAttr(kNameSpaceID_None, nsGkAtoms::style)) {
     return false;
   }
@@ -357,14 +363,15 @@ HTMLEditor::SetInlinePropertyOnTextNode(Text& aText,
   }
 
   // Reparent the node inside inline node with appropriate {attribute,value}
-  return SetInlinePropertyOnNode(*text, aProperty, aAttribute, aValue);
+  return SetInlinePropertyOnNode(*text, aProperty, aAttribute, aValue, false);
 }
 
 nsresult
 HTMLEditor::SetInlinePropertyOnNodeImpl(nsIContent& aNode,
                                         nsIAtom& aProperty,
                                         const nsAString* aAttribute,
-                                        const nsAString& aValue)
+                                          const nsAString& aValue,
+                                          bool aAvoidNestingForCSS)
 {
   nsCOMPtr<nsIAtom> attrAtom = aAttribute ? NS_Atomize(*aAttribute) : nullptr;
 
@@ -386,7 +393,7 @@ HTMLEditor::SetInlinePropertyOnNodeImpl(nsIContent& aNode,
       // Then loop through the list, set the property on each node.
       for (auto& node : arrayOfNodes) {
         nsresult rv = SetInlinePropertyOnNode(node, aProperty, aAttribute,
-                                              aValue);
+                                              aValue, false);
         NS_ENSURE_SUCCESS(rv, rv);
       }
     }
@@ -432,8 +439,9 @@ HTMLEditor::SetInlinePropertyOnNodeImpl(nsIContent& aNode,
     nsCOMPtr<dom::Element> tmp;
     // We only add style="" to <span>s with no attributes (bug 746515).  If we
     // don't have one, we need to make one.
-    if (aNode.IsHTMLElement(nsGkAtoms::span) &&
-        !aNode.AsElement()->GetAttrCount()) {
+    if (aNode.IsElement() &&
+        (aAvoidNestingForCSS ||
+         (aNode.AsElement()->IsHTMLElement(nsGkAtoms::span) && !aNode.AsElement()->GetAttrCount()))) {
       tmp = aNode.AsElement();
     } else {
       tmp = InsertContainerAbove(&aNode, nsGkAtoms::span);
@@ -466,7 +474,8 @@ nsresult
 HTMLEditor::SetInlinePropertyOnNode(nsIContent& aNode,
                                     nsIAtom& aProperty,
                                     const nsAString* aAttribute,
-                                    const nsAString& aValue)
+                                      const nsAString& aValue,
+                                      bool aAvoidNestingForCSS)
 {
   nsCOMPtr<nsIContent> previousSibling = aNode.GetPreviousSibling(),
                        nextSibling = aNode.GetNextSibling();
@@ -479,7 +488,7 @@ HTMLEditor::SetInlinePropertyOnNode(nsIContent& aNode,
   if (aNode.GetParentNode()) {
     // The node is still where it was
     return SetInlinePropertyOnNodeImpl(aNode, aProperty,
-                                       aAttribute, aValue);
+                                       aAttribute, aValue, aAvoidNestingForCSS);
   }
 
   // It's vanished.  Use the old siblings for reference to construct a
@@ -499,7 +508,7 @@ HTMLEditor::SetInlinePropertyOnNode(nsIContent& aNode,
   }
 
   for (auto& node : nodesToSet) {
-    rv = SetInlinePropertyOnNodeImpl(node, aProperty, aAttribute, aValue);
+    rv = SetInlinePropertyOnNodeImpl(node, aProperty, aAttribute, aValue, false);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -1317,7 +1326,7 @@ HTMLEditor::RemoveInlinePropertyImpl(nsIAtom* aProperty,
               // "inverting" the style
               mCSSEditUtils->IsCSSInvertible(*aProperty, aAttribute)) {
             NS_NAMED_LITERAL_STRING(value, "-moz-editor-invert-value");
-            SetInlinePropertyOnNode(node, *aProperty, aAttribute, value);
+            SetInlinePropertyOnNode(node, *aProperty, aAttribute, value, false);
           }
         }
       }

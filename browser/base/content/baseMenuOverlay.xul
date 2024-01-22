@@ -103,7 +103,7 @@
              key="&preferencesCmdMac.commandkey;"
              modifiers="accel"/>
         <key id="key_hideThisAppCmdMac"
-             key="&hideThisAppCmdMac2.commandkey;"
+             key="&hideThisAppCmdMac.commandkey;"
              modifiers="accel"/>
         <key id="key_hideOtherAppsCmdMac"
              key="&hideOtherAppsCmdMac.commandkey;"

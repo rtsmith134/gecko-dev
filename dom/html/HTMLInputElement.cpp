@@ -123,6 +123,8 @@
 // input type=date
 #include "js/Date.h"
 
+#include "nsCSSParser.h"
+
 NS_IMPL_NS_NEW_HTML_ELEMENT_CHECK_PARSER(Input)
 
 // XXX align=left, hspace, vspace, border? other nav4 attrs
@@ -873,9 +875,13 @@ HTMLInputElement::InitColorPicker()
     return NS_ERROR_FAILURE;
   }
 
+  nsAutoString showtransparency;
+  GetAttr(kNameSpaceID_None, nsGkAtoms::showtransparency, showtransparency);
+  PRBool showAlpha = showtransparency.EqualsLiteral("true");
+
   nsAutoString initialValue;
   GetNonFileValueInternal(initialValue);
-  nsresult rv = colorPicker->Init(win, title, initialValue);
+  nsresult rv = colorPicker->Init(win, title, initialValue, showAlpha);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIColorPickerShownCallback> callback =
@@ -5463,17 +5469,17 @@ HTMLInputElement::SanitizeValue(nsAString& aValue)
 
 bool HTMLInputElement::IsValidSimpleColor(const nsAString& aValue) const
 {
-  if (aValue.Length() != 7 || aValue.First() != '#') {
+  nsCSSValue value;
+  nsCSSParser parser;
+  if (!parser.ParseColorString(aValue, nullptr, 0, value)) {
     return false;
   }
 
-  for (int i = 1; i < 7; ++i) {
-    if (!nsCRT::IsAsciiDigit(aValue[i]) &&
-        !(aValue[i] >= 'a' && aValue[i] <= 'f') &&
-        !(aValue[i] >= 'A' && aValue[i] <= 'F')) {
-      return false;
-    }
+  nscolor color;
+  if (!nsRuleNode::ComputeColor(value, nullptr, nullptr, color)) {
+    return false;
   }
+
   return true;
 }
 

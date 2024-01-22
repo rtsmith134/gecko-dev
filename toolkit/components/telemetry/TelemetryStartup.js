@@ -37,6 +37,8 @@ TelemetryStartup.prototype.observe = function(aSubject, aTopic, aData) {
 
 function annotateEnvironment() {
   try {
+    if (!("@mozilla.org/toolkit/crash-reporter;1" in Cc))
+      return;
     let cr = Cc["@mozilla.org/toolkit/crash-reporter;1"];
     if (cr) {
       let env = JSON.stringify(TelemetryEnvironment.currentEnvironment);

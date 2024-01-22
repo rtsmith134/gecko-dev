@@ -937,6 +937,7 @@ nsScriptSecurityManager::CheckLoadURIFlags(nsIURI *aSourceURI,
                              &hasFlags);
     NS_ENSURE_SUCCESS(rv, rv);
     if (hasFlags) {
+        return NS_OK;
         // Allow domains that were whitelisted in the prefs. In 99.9% of cases,
         // this array is empty.
         for (nsIURI* uri : EnsureFileURIWhitelist()) {

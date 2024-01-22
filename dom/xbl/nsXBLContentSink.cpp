@@ -169,6 +169,8 @@ NS_IMETHODIMP
 nsXBLContentSink::ReportError(const char16_t* aErrorText, 
                               const char16_t* aSourceText,
                               nsIScriptError *aError,
+                              uint32_t aLineNumber,
+                              uint32_t aColNumber,
                               bool *_retval)
 {
   NS_PRECONDITION(aError && aSourceText && aErrorText, "Check arguments!!!");
@@ -194,6 +196,8 @@ nsXBLContentSink::ReportError(const char16_t* aErrorText,
   return nsXMLContentSink::ReportError(aErrorText, 
                                        aSourceText, 
                                        aError,
+                                       aLineNumber,
+                                       aColNumber,
                                        _retval);
 }
 

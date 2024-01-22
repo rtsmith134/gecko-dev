@@ -2131,7 +2131,7 @@ TabChild::RecvPDocumentRendererConstructor(PDocumentRendererChild* actor,
 }
 
 PColorPickerChild*
-TabChild::AllocPColorPickerChild(const nsString&, const nsString&)
+TabChild::AllocPColorPickerChild(const nsString&, const nsString&, const bool &)
 {
   MOZ_CRASH("unused");
   return nullptr;

@@ -192,12 +192,14 @@ NS_IMPL_ISUPPORTS(nsColorPicker, nsIColorPicker)
 NS_IMETHODIMP
 nsColorPicker::Init(mozIDOMWindowProxy* parent,
                     const nsAString& title,
-                    const nsAString& aInitialColor)
+                    const nsAString& aInitialColor,
+                    bool aShowsAlpha)
 {
   NS_PRECONDITION(parent,
       "Null parent passed to colorpicker, no color picker for you!");
   mParentWidget =  WidgetUtils::DOMWindowToWidget(nsPIDOMWindowOuter::From(parent));
   mInitialColor = ColorStringToRGB(aInitialColor);
+  mShowsAlpha = aShowsAlpha;
   return NS_OK;
 }
 

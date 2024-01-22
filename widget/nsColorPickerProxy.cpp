@@ -14,7 +14,7 @@ NS_IMPL_ISUPPORTS(nsColorPickerProxy, nsIColorPicker)
 
 NS_IMETHODIMP
 nsColorPickerProxy::Init(mozIDOMWindowProxy* aParent, const nsAString& aTitle,
-                         const nsAString& aInitialColor)
+                         const nsAString& aInitialColor, bool aShowsAlpha)
 {
   TabChild* tabChild = TabChild::GetFrom(aParent);
   if (!tabChild) {
@@ -23,7 +23,8 @@ nsColorPickerProxy::Init(mozIDOMWindowProxy* aParent, const nsAString& aTitle,
 
   tabChild->SendPColorPickerConstructor(this,
                                         nsString(aTitle),
-                                        nsString(aInitialColor));
+                                        nsString(aInitialColor),
+                                        aShowsAlpha);
   NS_ADDREF_THIS();
   return NS_OK;
 }

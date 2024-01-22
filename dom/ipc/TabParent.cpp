@@ -2438,9 +2438,10 @@ TabParent::GetAuthPrompt(uint32_t aPromptReason, const nsIID& iid,
 
 PColorPickerParent*
 TabParent::AllocPColorPickerParent(const nsString& aTitle,
-                                   const nsString& aInitialColor)
+                                   const nsString& aInitialColor,
+                                   const bool &aShowsAlpha)
 {
-  return new ColorPickerParent(aTitle, aInitialColor);
+  return new ColorPickerParent(aTitle, aInitialColor, aShowsAlpha);
 }
 
 bool

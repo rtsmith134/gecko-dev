@@ -901,6 +901,7 @@ protected:
     VALUE_MODE_FILENAME
   };
 
+public:
   /**
    * This helper method returns true if aValue is a valid email address.
    * This is following the HTML5 specification:
@@ -911,6 +912,7 @@ protected:
    */
   static bool IsValidEmailAddress(const nsAString& aValue);
 
+protected:
   /**
    * This helper method returns true if aValue is a valid email address list.
    * Email address list is a list of email address separated by comas (,) which

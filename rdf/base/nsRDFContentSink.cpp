@@ -527,6 +527,8 @@ NS_IMETHODIMP
 RDFContentSinkImpl::ReportError(const char16_t* aErrorText, 
                                 const char16_t* aSourceText,
                                 nsIScriptError *aError,
+                                PRUint32 aLineNumber,
+                                PRUint32 aColNumber,
                                 bool *_retval)
 {
   NS_PRECONDITION(aError && aSourceText && aErrorText, "Check arguments!!!");

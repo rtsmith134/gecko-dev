@@ -24,6 +24,7 @@
 #include "nsObjCExceptions.h"
 #include "imgIContainer.h"
 #include "nsCocoaUtils.h"
+#include "mozilla/Preferences.h"
 
 using mozilla::gfx::DataSourceSurface;
 using mozilla::gfx::SourceSurface;
@@ -175,7 +176,35 @@ nsClipboard::TransferableFromPasteboard(nsITransferable *aTransferable, NSPasteb
 
       NSData* stringData;
       if ([pboardType isEqualToString:NSPasteboardTypeRTF]) {
+        // get a NSAttributedString for RTF data
+        NSDictionary *docAttributes;
         stringData = [pString dataUsingEncoding:NSASCIIStringEncoding];
+        if (mozilla::Preferences::GetBool("bluegriffon.osx.clipboard.rtf.enabled")) {
+          NSAttributedString *attrString = [[NSAttributedString alloc]
+                         initWithRTF: stringData
+                  documentAttributes: &docAttributes];
+
+          // then convert it to HTML excluding the document's outermost elements
+          // and the ones we can't deal with ; but don't exclude <body> because
+          // the editor relies on it to paste a html-based transferable
+          NSArray * exclude = [NSArray arrayWithObjects:@"doctype",
+                               @"html",
+                               @"head",
+                               @"xml",
+                               nil
+                               ];
+          NSDictionary * htmlAtt = [NSDictionary
+                                    dictionaryWithObjectsAndKeys:NSHTMLTextDocumentType,
+                                    NSDocumentTypeDocumentAttribute,
+                                    exclude,
+                                    NSExcludedElementsDocumentAttribute,
+                                    nil
+                                    ];
+          NSError * error;
+          stringData = [attrString dataFromRange:NSMakeRange(0, [attrString length])
+                                     documentAttributes:htmlAtt error:&error
+                               ];
+        }
       } else {
         stringData = [pString dataUsingEncoding:NSUnicodeStringEncoding];
       }

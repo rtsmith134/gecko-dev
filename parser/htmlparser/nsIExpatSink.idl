@@ -12,7 +12,7 @@ interface nsIScriptError;
  * by any sink that handles some sort of XML dialect.
  */
 
-[scriptable, uuid(01f681af-0f22-4725-a914-0d396114daf0)]
+[scriptable, uuid(685473DA-41AA-4B20-BC9E-00828B592F76)]
 interface nsIExpatSink : nsISupports 
 {
   /**
@@ -105,5 +105,7 @@ interface nsIExpatSink : nsISupports
    */
   boolean ReportError(in wstring aErrorText,
                       in wstring aSourceText,
-                      in nsIScriptError aError);
+                      in nsIScriptError aError,
+                      in unsigned long aLineNumber,
+                      in unsigned long aColNumber);
 }; 

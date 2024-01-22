@@ -544,8 +544,8 @@ HTMLEditor::SetAnonymousElementPosition(int32_t aX,
                                         int32_t aY,
                                         Element* aElement)
 {
-  mCSSEditUtils->SetCSSPropertyPixels(*aElement, *nsGkAtoms::left, aX);
-  mCSSEditUtils->SetCSSPropertyPixels(*aElement, *nsGkAtoms::top, aY);
+  mCSSEditUtils->SetCSSPropertyPixels(*aElement, *nsGkAtoms::left, aX, true);
+  mCSSEditUtils->SetCSSPropertyPixels(*aElement, *nsGkAtoms::top, aY, true);
 }
 
 } // namespace mozilla

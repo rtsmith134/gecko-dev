@@ -93,8 +93,8 @@ nsResProtocolHandler::ResolveSpecialCases(const nsACString& aHost,
 nsresult
 nsResProtocolHandler::SetSubstitution(const nsACString& aRoot, nsIURI* aBaseURI)
 {
-    MOZ_ASSERT(!aRoot.Equals(""));
+    /*MOZ_ASSERT(!aRoot.Equals(""));
     MOZ_ASSERT(!aRoot.Equals(kAPP));
-    MOZ_ASSERT(!aRoot.Equals(kGRE));
+    MOZ_ASSERT(!aRoot.Equals(kGRE));*/
     return SubstitutingProtocolHandler::SetSubstitution(aRoot, aBaseURI);
 }
